@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 51: Scalar Line Integral Calculator (3D)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 18px; min-height: 100vh; }
+  h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  #subtitle { color: #fbbf24; font-size: 13px; font-style: italic; margin-bottom: 12px; text-align: center; max-width: 900px; min-height: 18px; }
+  #main { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  #canvasWrap { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid #334155; background: #0b1324; }
+  #canvasWrap canvas { display: block; }
+  #overlay { position: absolute; top: 10px; left: 10px; font: 12px "Courier New", monospace; color: #e2e8f0; pointer-events: none; background: rgba(11,19,36,0.7); padding: 6px 10px; border-radius: 4px; max-width: 400px; }
+  #hint { position: absolute; bottom: 10px; left: 10px; font-size: 11px; color: #64748b; pointer-events: none; }
+  .panel { background: #1e293b; border-radius: 8px; border: 1px solid #334155; padding: 14px; width: 280px; max-height: 820px; overflow-y: auto; }
+  .label { color: #fbbf24; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .divider { border-top: 1px solid #334155; margin: 12px 0; padding-top: 12px; }
+  .opt-btn { display: block; width: 100%; padding: 5px 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; cursor: pointer; font-size: 12px; text-align: left; margin-bottom: 3px; transition: all 0.15s; font-family: inherit; }
+  .opt-btn:hover { border-color: #fbbf24; color: #fbbf24; }
+  .opt-btn.active { border-color: #fbbf24; background: rgba(251,191,36,0.15); color: #fbbf24; font-weight: 600; }
+  label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-bottom: 6px; }
+  .slider-label { font-size: 12px; margin-bottom: 4px; margin-top: 6px; }
+  input[type="range"] { width: 100%; accent-color: #fbbf24; }
+  input[type="text"] {
+    background: #0b1324; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px;
+    padding: 5px 8px; font-family: "Courier New", monospace; font-size: 13px; width: 100%;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus { outline: none; border-color: #fbbf24; }
+  input[type="text"].err { border-color: #ef4444; }
+  .input-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .input-row .lbl { font-family: "Courier New", monospace; font-size: 12px; color: #94a3b8; min-width: 38px; text-align: right; }
+  .input-row .lbl-wide { min-width: 48px; }
+  .t-row { display: flex; align-items: center; gap: 4px; margin-bottom: 5px; }
+  .t-row input[type="text"] { width: 70px; }
+  .t-row .lbl { font-family: "Courier New", monospace; font-size: 12px; color: #94a3b8; }
+  .integral-box { background: #0b1324; border: 2px solid #fbbf24; border-radius: 8px; padding: 12px; margin-top: 8px; text-align: center; }
+  .integral-value { font-size: 20px; font-weight: 700; color: #fbbf24; font-family: "Courier New", monospace; }
+  .integral-note { font-size: 11px; color: #94a3b8; margin-top: 4px; min-height: 14px; }
+  .hint { font-size: 11px; line-height: 1.5; color: #94a3b8; }
+  .err-msg { color: #f87171; font-size: 11px; margin-top: 6px; min-height: 14px; font-family: "Courier New", monospace; }
+  .btn-row { display: flex; gap: 6px; }
+  .action-btn { flex: 1; padding: 7px; border-radius: 6px; border: 1px solid #fbbf24; background: rgba(251,191,36,0.15); color: #fbbf24; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+  .action-btn:hover { background: rgba(251,191,36,0.3); }
+  .secondary-btn { flex: 1; padding: 7px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+  .secondary-btn:hover { border-color: #38bdf8; color: #38bdf8; }
+  .syntax-help { font-size: 10px; color: #64748b; font-family: "Courier New", monospace; margin-top: 4px; line-height: 1.4; }
+</style>
+</head>
+<body>
+<h1>Lesson 51: Scalar Line Integral Calculator</h1>
+<p id="subtitle"></p>
+<div style="font-size: 12px; color: #64748b; margin-bottom: 10px;">
+  <a href="Vector_Line_Integral_Visualizer.html" style="color: #38bdf8; text-decoration: none;">Vector Line Integral Tool →</a>
+</div>
+<div id="main">
+  <div id="canvasWrap">
+    <div id="overlay">
+      <div id="ovCurve"></div>
+      <div id="ovField"></div>
+      <div id="ovArc" style="color:#94a3b8;margin-top:4px;"></div>
+    </div>
+    <div id="hint">Drag to rotate · Right-drag to pan · Scroll to zoom</div>
+  </div>
+
+  <div class="panel">
+    <div class="btn-row" style="margin-bottom: 12px;">
+      <button class="action-btn" id="playBtn">▶ Sweep</button>
+      <button class="secondary-btn" id="resetBtn">⟲ View</button>
+    </div>
+    <div class="label">Custom Curve r(t)</div>
+    <div class="input-row">
+      <span class="lbl">x(t) =</span>
+      <input type="text" id="xInput" value="2*cos(t)">
+    </div>
+    <div class="input-row">
+      <span class="lbl">y(t) =</span>
+      <input type="text" id="yInput" value="2*sin(t)">
+    </div>
+    <div class="input-row">
+      <span class="lbl">z(t) =</span>
+      <input type="text" id="zInput" value="0">
+    </div>
+    <div class="t-row">
+      <span class="lbl">t from</span>
+      <input type="text" id="tminInput" value="0">
+      <span class="lbl">to</span>
+      <input type="text" id="tmaxInput" value="pi">
+    </div>
+
+    <div style="margin-top: 10px;"></div>
+    <div class="label">Integrand f(x, y, z)</div>
+    <div class="input-row">
+      <span class="lbl">f =</span>
+      <input type="text" id="fInput" value="x + y^2">
+    </div>
+
+    <div class="btn-row" style="margin-top: 8px;">
+      <button class="action-btn" id="applyBtn">Apply (↵)</button>
+    </div>
+    <div class="err-msg" id="errMsg"></div>
+    <div class="syntax-help">
+      Use cos, sin, tan, exp, log, sqrt, abs, pi, e, ^ for powers.
+      e.g. sin(t)^2,  3*cos(2*pi*t),  e^(-x^2)
+    </div>
+
+    <div class="divider">
+      <div class="label">Curve Presets (click to fill)</div>
+      <div id="curves"></div>
+    </div>
+
+    <div class="divider">
+      <div class="label">Integrand Presets</div>
+      <div id="fields"></div>
+    </div>
+
+    <div class="divider">
+      <div class="label">Riemann Sum</div>
+      <div class="slider-label">Subdivisions n: <span id="nVal">60</span></div>
+      <input type="range" id="n" min="4" max="300" value="60">
+      <div class="integral-box">
+        <div style="font-size: 12px; color: #94a3b8;">∫_C f ds ≈</div>
+        <div class="integral-value" id="intVal">0.0000</div>
+        <div class="integral-note" id="exactNote"></div>
+      </div>
+    </div>
+
+    <div class="divider">
+      <div class="label">Display</div>
+      <label><input type="checkbox" id="chkCurtain" checked> Curtain / Ribbon</label>
+      <label><input type="checkbox" id="chkPanels"> Panel dividers</label>
+      <label><input type="checkbox" id="chkColor" checked> Color curve by f</label>
+      <label><input type="checkbox" id="chkGrid" checked> Grid & Axes</label>
+      <label><input type="checkbox" id="chkSamples"> Riemann samples</label>
+      <div class="slider-label">Curtain height scale: <span id="hsVal">1.00</span></div>
+      <input type="range" id="hscale" min="10" max="300" value="100">
+    </div>
+
+    <div class="divider">
+      <div class="hint">Axes: <span style="color:#f87171">x</span>, <span style="color:#4ade80">y</span>, <span style="color:#60a5fa">z</span>. For 2D curves (z=0), the curtain rises in +z with height f(x,y). For 3D curves, bars show |f| at each sample.</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.1/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// ─── Presets (populate input fields) ───
+const CURVE_PRESETS = {
+  "Semicircle r=2, (2,0)→(−2,0)": { x: "2*cos(t)", y: "2*sin(t)", z: "0", tmin: "0", tmax: "pi" },
+  "Unit Circle (ccw)":             { x: "cos(t)",   y: "sin(t)",   z: "0", tmin: "0", tmax: "2*pi" },
+  "Line segment (0,0)→(3,4)":     { x: "3*t",      y: "4*t",      z: "0", tmin: "0", tmax: "1" },
+  "Parabola y=x², x∈[−1,1]":      { x: "t",        y: "t^2",      z: "0", tmin: "-1", tmax: "1" },
+  "Ellipse a=3, b=2":              { x: "3*cos(t)", y: "2*sin(t)", z: "0", tmin: "0", tmax: "2*pi" },
+  "Cardioid r=1+cos(θ)":           { x: "(1+cos(t))*cos(t)", y: "(1+cos(t))*sin(t)", z: "0", tmin: "0", tmax: "2*pi" },
+  "3D Helix ⟨cos t, sin t, t⟩":   { x: "cos(t)",   y: "sin(t)",   z: "t", tmin: "0", tmax: "2*pi" },
+  "3D Curve ⟨t, t², t³⟩":         { x: "t",        y: "t^2",      z: "t^3", tmin: "0", tmax: "1.5" },
+  "Viviani's curve":               { x: "1+cos(t)", y: "sin(t)",   z: "2*sin(t/2)", tmin: "-2*pi", tmax: "2*pi" },
+};
+
+const FIELD_PRESETS = {
+  "f = 1 (arc length)": "1",
+  "f = x":               "x",
+  "f = y":               "y",
+  "f = z":               "z",
+  "f = x + y^2":         "x + y^2",
+  "f = xy":              "x*y",
+  "f = x^2 + y^2":       "x^2 + y^2",
+  "f = |x|+|y|+1":       "abs(x) + abs(y) + 1",
+  "f = x + y + z":       "x + y + z",
+  "f = e^(−(x²+y²))":    "e^(-(x^2+y^2))",
+};
+
+// ─── Known exact values (keyed by full canonical input) ───
+const EXACT = {
+  "2*cos(t)|2*sin(t)|0|0|pi|x + y^2": "Exact: 4π ≈ 12.5664",
+  "2*cos(t)|2*sin(t)|0|0|pi|1":        "Exact: 2π ≈ 6.2832",
+  "cos(t)|sin(t)|0|0|2*pi|1":          "Exact: 2π ≈ 6.2832",
+  "cos(t)|sin(t)|0|0|2*pi|x^2 + y^2":  "Exact: 2π ≈ 6.2832",
+  "3*t|4*t|0|0|1|x*y":                 "Exact: 20",
+  "3*t|4*t|0|0|1|1":                   "Exact: 5",
+  "cos(t)|sin(t)|t|0|2*pi|z":          "Exact: 2π²√2 ≈ 27.9188",
+  "cos(t)|sin(t)|t|0|2*pi|1":          "Exact: 2π√2 ≈ 8.8858",
+};
+
+// ─── Active state (compiled from inputs) ───
+let activeCurve = null;
+let activeField = null;
+let lastInputs = null;
+
+// ─── Compile curve & field from strings ───
+function compileCurve(xE, yE, zE, tminE, tmaxE) {
+  const xC = math.compile(xE);
+  const yC = math.compile(yE);
+  const zC = math.compile(zE);
+  const tmin = math.evaluate(tminE);
+  const tmax = math.evaluate(tmaxE);
+  if (!isFinite(tmin) || !isFinite(tmax)) throw new Error("t bounds must be numeric");
+  if (tmax <= tmin) throw new Error("tmax must be greater than tmin");
+
+  const r = (t) => {
+    const scope = { t };
+    const pt = [xC.evaluate(scope), yC.evaluate(scope), zC.evaluate(scope)];
+    if (!isFinite(pt[0]) || !isFinite(pt[1]) || !isFinite(pt[2])) throw new Error("curve evaluates to non-finite value");
+    return pt;
+  };
+  // Numerical derivative (central difference)
+  const h = 1e-4;
+  const dr = (t) => {
+    const a = r(t + h), b = r(t - h);
+    return [(a[0]-b[0])/(2*h), (a[1]-b[1])/(2*h), (a[2]-b[2])/(2*h)];
+  };
+  // Test evaluation at a few points
+  const test = r(tmin); r(tmax); r((tmin+tmax)/2);
+
+  // Detect dimension: if z is ≈0 everywhere, treat as 2D
+  let dim = 2;
+  for (let i = 0; i <= 10; i++) {
+    const tt = tmin + (tmax - tmin) * i / 10;
+    if (Math.abs(zC.evaluate({ t: tt })) > 1e-9) { dim = 3; break; }
+  }
+
+  return {
+    r, dr, tmin, tmax, dim,
+    tex: `r(t) = ⟨${xE}, ${yE}, ${zE}⟩, t ∈ [${tminE}, ${tmaxE}]`
+  };
+}
+
+function compileField(expr) {
+  const c = math.compile(expr);
+  const fn = (x, y, z) => {
+    const v = c.evaluate({ x, y, z });
+    return isFinite(v) ? v : 0;
+  };
+  // test
+  fn(1, 1, 1);
+  return { fn, label: `f(x,y,z) = ${expr}` };
+}
+
+// ─── Apply inputs ───
+function getInputs() {
+  return {
+    x: document.getElementById("xInput").value.trim(),
+    y: document.getElementById("yInput").value.trim(),
+    z: document.getElementById("zInput").value.trim(),
+    tmin: document.getElementById("tminInput").value.trim(),
+    tmax: document.getElementById("tmaxInput").value.trim(),
+    f: document.getElementById("fInput").value.trim(),
+  };
+}
+
+function setInputs(x, y, z, tmin, tmax, f) {
+  if (x !== undefined) document.getElementById("xInput").value = x;
+  if (y !== undefined) document.getElementById("yInput").value = y;
+  if (z !== undefined) document.getElementById("zInput").value = z;
+  if (tmin !== undefined) document.getElementById("tminInput").value = tmin;
+  if (tmax !== undefined) document.getElementById("tmaxInput").value = tmax;
+  if (f !== undefined) document.getElementById("fInput").value = f;
+}
+
+function clearErrorStyles() {
+  ["xInput","yInput","zInput","tminInput","tmaxInput","fInput"].forEach(id => {
+    document.getElementById(id).classList.remove("err");
+  });
+}
+
+function apply() {
+  clearErrorStyles();
+  const inp = getInputs();
+  const errEl = document.getElementById("errMsg");
+  errEl.textContent = "";
+  let which = "";
+  try {
+    which = "curve";
+    const newCurve = compileCurve(inp.x, inp.y, inp.z, inp.tmin, inp.tmax);
+    which = "integrand";
+    const newField = compileField(inp.f);
+    activeCurve = newCurve;
+    activeField = newField;
+    lastInputs = inp;
+    updatePresetHighlights();
+    rebuildContent();
+  } catch (e) {
+    errEl.textContent = `Error in ${which}: ${e.message}`;
+    if (which === "curve") {
+      ["xInput","yInput","zInput","tminInput","tmaxInput"].forEach(id => document.getElementById(id).classList.add("err"));
+    } else {
+      document.getElementById("fInput").classList.add("err");
+    }
+  }
+}
+
+// ─── Three.js setup ───
+const W = 700, H = 720;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1324);
+
+const camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 1000);
+const DEFAULT_CAM = new THREE.Vector3(8, 8, 7);
+camera.position.copy(DEFAULT_CAM);
+camera.up.set(0, 0, 1);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.getElementById("canvasWrap").appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 0, 1);
+controls.update();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+dirLight.position.set(10, 10, 15);
+scene.add(dirLight);
+
+// ─── Axes ───
+const axisGroup = new THREE.Group();
+scene.add(axisGroup);
+let showGrid = true;
+
+function makeTextSprite(txt, color) {
+  const cv = document.createElement("canvas");
+  cv.width = 64; cv.height = 64;
+  const c = cv.getContext("2d");
+  c.fillStyle = color;
+  c.font = "bold 42px system-ui";
+  c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillText(txt, 32, 32);
+  const tex = new THREE.CanvasTexture(cv);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+  sp.scale.set(0.5, 0.5, 0.5);
+  return sp;
+}
+
+function buildAxes() {
+  axisGroup.clear();
+  if (!showGrid) return;
+  const L = 5;
+  const grid = new THREE.GridHelper(L*2, L*2, 0x1e293b, 0x1e293b);
+  grid.rotation.x = Math.PI/2;
+  axisGroup.add(grid);
+
+  const axMat = (color) => new THREE.LineBasicMaterial({ color });
+  function axisLine(end, color) {
+    const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), end]);
+    return new THREE.Line(g, axMat(color));
+  }
+  axisGroup.add(axisLine(new THREE.Vector3(L, 0, 0), 0xf87171));
+  axisGroup.add(axisLine(new THREE.Vector3(0, L, 0), 0x4ade80));
+  axisGroup.add(axisLine(new THREE.Vector3(0, 0, L), 0x60a5fa));
+
+  function arrowHead(pos, color, axis) {
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.25, 16), new THREE.MeshBasicMaterial({ color }));
+    m.position.copy(pos);
+    if (axis === 'x') m.rotation.z = -Math.PI/2;
+    if (axis === 'z') m.rotation.x = Math.PI/2;
+    return m;
+  }
+  axisGroup.add(arrowHead(new THREE.Vector3(L, 0, 0), 0xf87171, 'x'));
+  axisGroup.add(arrowHead(new THREE.Vector3(0, L, 0), 0x4ade80, 'y'));
+  axisGroup.add(arrowHead(new THREE.Vector3(0, 0, L), 0x60a5fa, 'z'));
+
+  const lx = makeTextSprite("x", "#f87171"); lx.position.set(L+0.4, 0, 0); axisGroup.add(lx);
+  const ly = makeTextSprite("y", "#4ade80"); ly.position.set(0, L+0.4, 0); axisGroup.add(ly);
+  const lz = makeTextSprite("z", "#60a5fa"); lz.position.set(0, 0, L+0.4); axisGroup.add(lz);
+
+  for (let i = -L; i <= L; i++) {
+    if (i === 0) continue;
+    const tx = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshBasicMaterial({ color: 0xf87171 }));
+    tx.position.set(i, 0, 0); axisGroup.add(tx);
+    const ty = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshBasicMaterial({ color: 0x4ade80 }));
+    ty.position.set(0, i, 0); axisGroup.add(ty);
+    if (i > 0) {
+      const tz = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshBasicMaterial({ color: 0x60a5fa }));
+      tz.position.set(0, 0, i); axisGroup.add(tz);
+    }
+  }
+}
+buildAxes();
+
+const contentGroup = new THREE.Group();
+scene.add(contentGroup);
+
+// ─── State ───
+let n = 60;
+let showCurtain = true, showColor = true, showSamples = false, showPanels = false;
+let heightScale = 1.0;
+let sweepT = null;
+let sweepAnim = null;
+
+// ─── Computation ───
+function computeIntegralAndSamples(curve, field, nSub) {
+  const h = (curve.tmax - curve.tmin) / nSub;
+  const pieceData = [];
+  let total = 0;
+  let fMin = Infinity, fMax = -Infinity;
+  for (let i = 0; i < nSub; i++) {
+    const tMid = curve.tmin + (i + 0.5) * h;
+    const pt = curve.r(tMid);
+    const drv = curve.dr(tMid);
+    const speed = Math.sqrt(drv[0]*drv[0] + drv[1]*drv[1] + drv[2]*drv[2]);
+    const fVal = field.fn(pt[0], pt[1], pt[2]);
+    total += fVal * speed * h;
+    pieceData.push({ t: tMid, pt, fVal, speed, h });
+    if (fVal < fMin) fMin = fVal;
+    if (fVal > fMax) fMax = fVal;
+  }
+  return { total, perPiece: [pieceData], fMin, fMax };
+}
+
+function densePiecePoints(curve, samples) {
+  const pts = [];
+  for (let i = 0; i <= samples; i++) {
+    const tt = curve.tmin + (curve.tmax - curve.tmin) * i / samples;
+    pts.push({ pt: curve.r(tt) });
+  }
+  return pts;
+}
+
+function viridisColor(t) {
+  t = Math.max(0, Math.min(1, t));
+  return new THREE.Color((68 + t*(253-68))/255, (1 + t*(231-1))/255, (84 + t*(37-84))/255);
+}
+
+// ─── Build scene content ───
+function rebuildContent() {
+  if (!activeCurve || !activeField) return;
+
+  while (contentGroup.children.length) {
+    const c = contentGroup.children.pop();
+    if (c.geometry) c.geometry.dispose();
+    if (c.material) {
+      if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+      else c.material.dispose();
+    }
+  }
+
+  let result;
+  try {
+    result = computeIntegralAndSamples(activeCurve, activeField, n);
+  } catch (e) {
+    document.getElementById("errMsg").textContent = `Evaluation error: ${e.message}`;
+    return;
+  }
+
+  const effectiveT = sweepT !== null ? sweepT : 1;
+  const fAbs = Math.max(Math.abs(result.fMin), Math.abs(result.fMax), 0.01);
+  const baseHScale = 2.5 / fAbs;
+  const hs = baseHScale * heightScale;
+
+  const densePts = densePiecePoints(activeCurve, Math.max(200, n*2));
+  const cutoff = Math.floor(densePts.length * effectiveT);
+  if (cutoff < 2) { renderer.render(scene, camera); return; }
+
+  // Curve
+  {
+    const positions = [], colors = [];
+    for (let i = 0; i < cutoff - 1; i++) {
+      const a = densePts[i].pt, b = densePts[i+1].pt;
+      positions.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+      let col;
+      if (showColor) {
+        const fa = activeField.fn(a[0], a[1], a[2]);
+        const tt = (fa - result.fMin) / (result.fMax - result.fMin + 1e-10);
+        col = viridisColor(tt);
+      } else {
+        col = new THREE.Color(0x38bdf8);
+      }
+      colors.push(col.r, col.g, col.b, col.r, col.g, col.b);
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    contentGroup.add(new THREE.LineSegments(geom, new THREE.LineBasicMaterial({ vertexColors: true })));
+  }
+
+  // Curtain
+  if (showCurtain) {
+    if (activeCurve.dim === 2) {
+      const positions = [], colors = [], indices = [];
+      for (let i = 0; i < cutoff; i++) {
+        const p = densePts[i].pt;
+        const fv = activeField.fn(p[0], p[1], p[2]);
+        const hh = fv * hs;
+        positions.push(p[0], p[1], 0);
+        positions.push(p[0], p[1], hh);
+        const col = fv >= 0 ? new THREE.Color(0x38bdf8) : new THREE.Color(0xf472b6);
+        colors.push(col.r, col.g, col.b, col.r*0.7, col.g*0.7, col.b*0.7);
+        if (i > 0) {
+          const a = (i-1)*2, b = (i-1)*2+1, c = i*2, d = i*2+1;
+          indices.push(a, b, d, a, d, c);
+        }
+      }
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+      geom.setIndex(indices);
+      geom.computeVertexNormals();
+      contentGroup.add(new THREE.Mesh(geom, new THREE.MeshBasicMaterial({
+        vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 0.45
+      })));
+
+      // Top edge highlight
+      const edgePos = [];
+      for (let i = 0; i < cutoff - 1; i++) {
+        const p1 = densePts[i].pt, p2 = densePts[i+1].pt;
+        const f1 = activeField.fn(p1[0], p1[1], p1[2]);
+        const f2 = activeField.fn(p2[0], p2[1], p2[2]);
+        edgePos.push(p1[0], p1[1], f1*hs, p2[0], p2[1], f2*hs);
+      }
+      const eg = new THREE.BufferGeometry();
+      eg.setAttribute("position", new THREE.Float32BufferAttribute(edgePos, 3));
+      contentGroup.add(new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0xfbbf24 })));
+    } else {
+      const positions = [], colors = [];
+      for (let i = 0; i < cutoff; i += 2) {
+        const p = densePts[i].pt;
+        const fv = activeField.fn(p[0], p[1], p[2]);
+        const hh = fv * hs * 0.5;
+        positions.push(p[0], p[1], p[2], p[0], p[1], p[2] + hh);
+        const col = fv >= 0 ? new THREE.Color(0x38bdf8) : new THREE.Color(0xf472b6);
+        colors.push(col.r, col.g, col.b, col.r, col.g, col.b);
+      }
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+      contentGroup.add(new THREE.LineSegments(geom, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7 })));
+    }
+  }
+
+  // Panel dividers (vertical lines at partition boundaries t_i = tmin + i*h)
+  if (showPanels && showCurtain) {
+    const linePos = [];
+    const h = (activeCurve.tmax - activeCurve.tmin) / n;
+    // Only draw boundaries up to the sweep cutoff
+    const tMaxShown = activeCurve.tmin + (activeCurve.tmax - activeCurve.tmin) * effectiveT;
+    for (let i = 0; i <= n; i++) {
+      const ti = activeCurve.tmin + i * h;
+      if (ti > tMaxShown + 1e-9) break;
+      const p = activeCurve.r(ti);
+      if (activeCurve.dim === 2) {
+        const fv = activeField.fn(p[0], p[1], p[2]);
+        const hh = fv * hs;
+        linePos.push(p[0], p[1], 0, p[0], p[1], hh);
+      } else {
+        const fv = activeField.fn(p[0], p[1], p[2]);
+        const hh = fv * hs * 0.5;
+        linePos.push(p[0], p[1], p[2], p[0], p[1], p[2] + hh);
+      }
+    }
+    if (linePos.length > 0) {
+      const pg = new THREE.BufferGeometry();
+      pg.setAttribute("position", new THREE.Float32BufferAttribute(linePos, 3));
+      contentGroup.add(new THREE.LineSegments(pg, new THREE.LineBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.8 })));
+    }
+  }
+
+  // Riemann samples
+  if (showSamples) {
+    const pd = result.perPiece[0];
+    const sCutoff = Math.floor(pd.length * effectiveT);
+    const sg = new THREE.SphereGeometry(0.04, 8, 8);
+    const sm = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+    for (let i = 0; i < sCutoff; i++) {
+      const m = new THREE.Mesh(sg, sm);
+      m.position.set(pd[i].pt[0], pd[i].pt[1], pd[i].pt[2]);
+      contentGroup.add(m);
+    }
+  }
+
+  // Endpoints
+  const sg = new THREE.SphereGeometry(0.1, 16, 16);
+  const p0 = densePts[0].pt;
+  const start = new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ color: 0x34d399 }));
+  start.position.set(p0[0], p0[1], p0[2]); contentGroup.add(start);
+  if (effectiveT >= 1) {
+    const pL = densePts[densePts.length-1].pt;
+    const end = new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ color: 0xf472b6 }));
+    end.position.set(pL[0], pL[1], pL[2]); contentGroup.add(end);
+  }
+
+  // HUD
+  const sweepTxt = sweepT !== null && sweepT < 1 ? ` (sweep ${(sweepT*100).toFixed(0)}%)` : '';
+  document.getElementById("intVal").textContent = result.total.toFixed(4) + sweepTxt;
+  const exactKey = `${lastInputs.x}|${lastInputs.y}|${lastInputs.z}|${lastInputs.tmin}|${lastInputs.tmax}|${lastInputs.f}`;
+  document.getElementById("exactNote").textContent = EXACT[exactKey] || "";
+  document.getElementById("subtitle").textContent = activeCurve.tex + "   •   " + activeField.label;
+  document.getElementById("ovCurve").textContent = activeCurve.tex;
+  document.getElementById("ovField").textContent = activeField.label;
+  try {
+    const arcLen = computeIntegralAndSamples(activeCurve, { fn: () => 1 }, n).total;
+    document.getElementById("ovArc").textContent = `n = ${n}  •  arc length ≈ ${arcLen.toFixed(4)}`;
+  } catch (e) { /* silent */ }
+}
+
+// ─── Preset buttons ───
+const curvesDiv = document.getElementById("curves");
+Object.keys(CURVE_PRESETS).forEach(k => {
+  const b = document.createElement("button");
+  b.className = "opt-btn";
+  b.textContent = k;
+  b.onclick = () => {
+    const p = CURVE_PRESETS[k];
+    setInputs(p.x, p.y, p.z, p.tmin, p.tmax);
+    apply();
+  };
+  curvesDiv.appendChild(b);
+});
+
+const fieldsDiv = document.getElementById("fields");
+Object.keys(FIELD_PRESETS).forEach(k => {
+  const b = document.createElement("button");
+  b.className = "opt-btn";
+  b.textContent = k;
+  b.onclick = () => {
+    setInputs(undefined, undefined, undefined, undefined, undefined, FIELD_PRESETS[k]);
+    apply();
+  };
+  fieldsDiv.appendChild(b);
+});
+
+function updatePresetHighlights() {
+  const inp = getInputs();
+  curvesDiv.querySelectorAll(".opt-btn").forEach((b, i) => {
+    const k = Object.keys(CURVE_PRESETS)[i];
+    const p = CURVE_PRESETS[k];
+    const match = p.x === inp.x && p.y === inp.y && p.z === inp.z && p.tmin === inp.tmin && p.tmax === inp.tmax;
+    b.classList.toggle("active", match);
+  });
+  fieldsDiv.querySelectorAll(".opt-btn").forEach((b, i) => {
+    const k = Object.keys(FIELD_PRESETS)[i];
+    b.classList.toggle("active", FIELD_PRESETS[k] === inp.f);
+  });
+}
+
+// ─── Controls ───
+document.getElementById("applyBtn").onclick = apply;
+["xInput","yInput","zInput","tminInput","tmaxInput","fInput"].forEach(id => {
+  document.getElementById(id).addEventListener("keydown", e => {
+    if (e.key === "Enter") apply();
+  });
+});
+
+document.getElementById("n").oninput = e => { n = +e.target.value; document.getElementById("nVal").textContent = n; rebuildContent(); };
+document.getElementById("chkCurtain").onchange = e => { showCurtain = e.target.checked; rebuildContent(); };
+document.getElementById("chkPanels").onchange = e => { showPanels = e.target.checked; rebuildContent(); };
+document.getElementById("chkColor").onchange = e => { showColor = e.target.checked; rebuildContent(); };
+document.getElementById("chkGrid").onchange = e => { showGrid = e.target.checked; buildAxes(); };
+document.getElementById("chkSamples").onchange = e => { showSamples = e.target.checked; rebuildContent(); };
+document.getElementById("hscale").oninput = e => {
+  heightScale = +e.target.value / 100;
+  document.getElementById("hsVal").textContent = heightScale.toFixed(2);
+  rebuildContent();
+};
+
+document.getElementById("resetBtn").onclick = () => {
+  camera.position.copy(DEFAULT_CAM);
+  controls.target.set(0, 0, 1);
+  controls.update();
+};
+
+document.getElementById("playBtn").onclick = () => {
+  if (sweepAnim) {
+    clearInterval(sweepAnim); sweepAnim = null; sweepT = null;
+    document.getElementById("playBtn").textContent = "▶ Sweep";
+    rebuildContent();
+    return;
+  }
+  sweepT = 0;
+  document.getElementById("playBtn").textContent = "■ Stop";
+  sweepAnim = setInterval(() => {
+    sweepT += 0.012;
+    if (sweepT > 1) {
+      sweepT = 1;
+      clearInterval(sweepAnim); sweepAnim = null;
+      setTimeout(() => { sweepT = null; document.getElementById("playBtn").textContent = "▶ Sweep"; rebuildContent(); }, 800);
+    }
+    rebuildContent();
+  }, 30);
+};
+
+// ─── Animate ───
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// Initial apply
+apply();
+animate();
+</script>
+</body>
+</html>

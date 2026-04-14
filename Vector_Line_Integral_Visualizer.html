@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vector Line Integral Calculator (3D)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 18px; min-height: 100vh; }
+  h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  #subtitle { color: #fbbf24; font-size: 13px; font-style: italic; margin-bottom: 6px; text-align: center; max-width: 960px; min-height: 18px; }
+  #formula { color: #e2e8f0; font-size: 15px; margin-bottom: 12px; text-align: center; }
+  #nav-links { font-size: 12px; color: #64748b; margin-bottom: 10px; }
+  #nav-links a { color: #38bdf8; text-decoration: none; margin: 0 6px; }
+  #nav-links a:hover { text-decoration: underline; }
+  #main { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  #canvasWrap { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid #334155; background: #0b1324; }
+  #canvasWrap canvas { display: block; }
+  #overlay { position: absolute; top: 10px; left: 10px; font: 12px "Courier New", monospace; color: #e2e8f0; pointer-events: none; background: rgba(11,19,36,0.7); padding: 6px 10px; border-radius: 4px; max-width: 460px; }
+  #hint { position: absolute; bottom: 10px; left: 10px; font-size: 11px; color: #64748b; pointer-events: none; }
+  .panel { background: #1e293b; border-radius: 8px; border: 1px solid #334155; padding: 14px; width: 300px; max-height: 860px; overflow-y: auto; }
+  .label { color: #fbbf24; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .divider { border-top: 1px solid #334155; margin: 12px 0; padding-top: 12px; }
+  .opt-btn { display: block; width: 100%; padding: 5px 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; cursor: pointer; font-size: 12px; text-align: left; margin-bottom: 3px; transition: all 0.15s; font-family: inherit; }
+  .opt-btn:hover { border-color: #fbbf24; color: #fbbf24; }
+  .opt-btn.active { border-color: #fbbf24; background: rgba(251,191,36,0.15); color: #fbbf24; font-weight: 600; }
+  label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-bottom: 6px; }
+  .slider-label { font-size: 12px; margin-bottom: 4px; margin-top: 6px; }
+  input[type="range"] { width: 100%; accent-color: #fbbf24; }
+  input[type="text"] {
+    background: #0b1324; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px;
+    padding: 5px 8px; font-family: "Courier New", monospace; font-size: 13px; width: 100%;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus { outline: none; border-color: #fbbf24; }
+  input[type="text"].err { border-color: #ef4444; }
+  .input-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .input-row .lbl { font-family: "Courier New", monospace; font-size: 12px; color: #94a3b8; min-width: 42px; text-align: right; }
+  .t-row { display: flex; align-items: center; gap: 4px; margin-bottom: 5px; }
+  .t-row input[type="text"] { width: 70px; }
+  .t-row .lbl { font-family: "Courier New", monospace; font-size: 12px; color: #94a3b8; }
+  .integral-box { background: #0b1324; border: 2px solid #fbbf24; border-radius: 8px; padding: 12px; margin-top: 8px; text-align: center; }
+  .integral-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+  .integral-value { font-size: 20px; font-weight: 700; color: #fbbf24; font-family: "Courier New", monospace; }
+  .integral-note { font-size: 11px; color: #94a3b8; margin-top: 4px; min-height: 14px; }
+  .sign-positive { color: #4ade80; }
+  .sign-negative { color: #f87171; }
+  .hint { font-size: 11px; line-height: 1.5; color: #94a3b8; }
+  .err-msg { color: #f87171; font-size: 11px; margin-top: 6px; min-height: 14px; font-family: "Courier New", monospace; }
+  .btn-row { display: flex; gap: 6px; }
+  .action-btn { flex: 1; padding: 7px; border-radius: 6px; border: 1px solid #fbbf24; background: rgba(251,191,36,0.15); color: #fbbf24; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+  .action-btn:hover { background: rgba(251,191,36,0.3); }
+  .secondary-btn { flex: 1; padding: 7px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+  .secondary-btn:hover { border-color: #38bdf8; color: #38bdf8; }
+  .syntax-help { font-size: 10px; color: #64748b; font-family: "Courier New", monospace; margin-top: 4px; line-height: 1.4; }
+  .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+</style>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$'], ['\\[','\\]']] },
+    chtml: { scale: 1.0 }
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<h1>Vector Line Integral Calculator</h1>
+<p id="subtitle">Work done by a vector field along an oriented curve</p>
+<div id="formula">$$\displaystyle \int_C \mathbf{F}\cdot d\mathbf{r} \;=\; \int_a^b \mathbf{F}(\mathbf{r}(t))\cdot \mathbf{r}'(t)\, dt \;=\; \int_a^b (\mathbf{F}\cdot \mathbf{T})\, ds$$</div>
+<div id="nav-links">
+  <a href="Line_Integral_Visualizer.html">← Scalar Line Integral Tool</a>
+  <span style="color:#334155;">|</span>
+  <a href="#" id="resetAllBtn">Reset to defaults</a>
+</div>
+
+<div id="main">
+  <div id="canvasWrap">
+    <div id="overlay">
+      <div id="ovCurve"></div>
+      <div id="ovField"></div>
+      <div id="ovWork" style="color:#fbbf24;margin-top:4px;"></div>
+    </div>
+    <div id="hint">Drag to rotate · Right-drag to pan · Scroll to zoom</div>
+  </div>
+
+  <div class="panel">
+    <div class="btn-row" style="margin-bottom: 12px;">
+      <button class="action-btn" id="playBtn">▶ Sweep</button>
+      <button class="secondary-btn" id="resetBtn">⟲ View</button>
+    </div>
+    <div class="label">Curve r(t)</div>
+    <div class="input-row">
+      <span class="lbl">x(t) =</span>
+      <input type="text" id="xInput" value="cos(t)">
+    </div>
+    <div class="input-row">
+      <span class="lbl">y(t) =</span>
+      <input type="text" id="yInput" value="sin(t)">
+    </div>
+    <div class="input-row">
+      <span class="lbl">z(t) =</span>
+      <input type="text" id="zInput" value="0">
+    </div>
+    <div class="t-row">
+      <span class="lbl">t from</span>
+      <input type="text" id="tminInput" value="0">
+      <span class="lbl">to</span>
+      <input type="text" id="tmaxInput" value="2*pi">
+    </div>
+
+    <div style="margin-top: 10px;"></div>
+    <div class="label">Vector Field F = ⟨P, Q, R⟩</div>
+    <div class="input-row">
+      <span class="lbl">P =</span>
+      <input type="text" id="pInput" value="-y">
+    </div>
+    <div class="input-row">
+      <span class="lbl">Q =</span>
+      <input type="text" id="qInput" value="x">
+    </div>
+    <div class="input-row">
+      <span class="lbl">R =</span>
+      <input type="text" id="rInput" value="0">
+    </div>
+
+    <div class="btn-row" style="margin-top: 8px;">
+      <button class="action-btn" id="applyBtn">Apply (↵)</button>
+    </div>
+    <div class="err-msg" id="errMsg"></div>
+    <div class="syntax-help">
+      Use cos, sin, tan, exp, log, sqrt, abs, pi, e, ^ for powers.
+      e.g. -y/(x^2+y^2), e^(-x^2-y^2), 2*x*y
+    </div>
+
+    <div class="divider">
+      <div class="label">Curve Presets</div>
+      <div id="curves"></div>
+    </div>
+
+    <div class="divider">
+      <div class="label">Vector Field Presets</div>
+      <div id="fields"></div>
+    </div>
+
+    <div class="divider">
+      <div class="label">Riemann Sum</div>
+      <div class="slider-label">Subdivisions n: <span id="nVal">60</span></div>
+      <input type="range" id="n" min="4" max="300" value="60">
+      <div class="integral-box">
+        <div class="integral-label">$\int_C \mathbf{F}\cdot d\mathbf{r} \approx$</div>
+        <div class="integral-value" id="intVal">0.0000</div>
+        <div class="integral-note" id="exactNote"></div>
+      </div>
+    </div>
+
+    <div class="divider">
+      <div class="label">Visualization Layers</div>
+      <label><input type="checkbox" id="chkArrowsOnCurve" checked>
+        <span><span class="legend-dot" style="background:#fbbf24;"></span>F along curve</span></label>
+      <label><input type="checkbox" id="chkTangent">
+        <span><span class="legend-dot" style="background:#38bdf8;"></span>Tangent T + projection F·T</span></label>
+      <label><input type="checkbox" id="chkCurtain" checked>
+        <span><span class="legend-dot" style="background:#4ade80;"></span>/<span class="legend-dot" style="background:#f87171;"></span> Work curtain (F·T)</span></label>
+      <label><input type="checkbox" id="chkPanels">
+        <span><span class="legend-dot" style="background:#fbbf24;"></span>Panel dividers</span></label>
+      <label><input type="checkbox" id="chkFieldGrid">
+        <span><span class="legend-dot" style="background:#94a3b8;"></span>Full field grid</span></label>
+      <label><input type="checkbox" id="chkColorCurve" checked>Color curve by F·T sign</label>
+      <label><input type="checkbox" id="chkGrid" checked>Grid & Axes</label>
+      <div class="slider-label">Arrow scale: <span id="asVal">1.00</span></div>
+      <input type="range" id="ascale" min="20" max="300" value="100">
+      <div class="slider-label">Grid density: <span id="gdVal">7</span></div>
+      <input type="range" id="gdens" min="3" max="15" value="7">
+    </div>
+
+    <div class="divider">
+      <div class="hint">
+        <strong style="color:#fbbf24;">Orientation matters:</strong> reversing t-direction negates the integral.
+        <br>
+        <strong style="color:#4ade80;">Green</strong> = F aligned with motion (positive work).
+        <strong style="color:#f87171;">Red</strong> = F opposed to motion (negative work).
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.1/math.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// ─── Presets ───
+const CURVE_PRESETS = {
+  "Unit circle (ccw)":             { x: "cos(t)",   y: "sin(t)",   z: "0", tmin: "0", tmax: "2*pi" },
+  "Unit circle (cw) — reversed":   { x: "cos(-t)",  y: "sin(-t)",  z: "0", tmin: "0", tmax: "2*pi" },
+  "Line (0,0)→(1,1)":              { x: "t",        y: "t",        z: "0", tmin: "0", tmax: "1" },
+  "Line (0,0)→(3,4)":              { x: "3*t",      y: "4*t",      z: "0", tmin: "0", tmax: "1" },
+  "Parabola y=x², x∈[0,2]":        { x: "t",        y: "t^2",      z: "0", tmin: "0", tmax: "2" },
+  "Ellipse a=3, b=2":              { x: "3*cos(t)", y: "2*sin(t)", z: "0", tmin: "0", tmax: "2*pi" },
+  "3D Helix ⟨cos t, sin t, t⟩":   { x: "cos(t)",   y: "sin(t)",   z: "t", tmin: "0", tmax: "2*pi" },
+  "Twisted cubic ⟨t, t², t³⟩":    { x: "t",        y: "t^2",      z: "t^3", tmin: "0", tmax: "1" },
+};
+
+const FIELD_PRESETS = {
+  "F = ⟨-y, x, 0⟩   (rotational)":        { p: "-y",        q: "x",         r: "0" },
+  "F = ⟨x, y, 0⟩   (radial outward)":     { p: "x",         q: "y",         r: "0" },
+  "F = ⟨-x, -y, 0⟩   (radial inward)":    { p: "-x",        q: "-y",        r: "0" },
+  "F = ⟨1, 0, 0⟩   (constant)":           { p: "1",         q: "0",         r: "0" },
+  "F = ⟨y, x, 0⟩   (conservative: f=xy)":  { p: "y",         q: "x",         r: "0" },
+  "F = ⟨2x, 2y, 2z⟩ (∇(x²+y²+z²))":        { p: "2*x",       q: "2*y",       r: "2*z" },
+  "F = ⟨yz, xz, xy⟩ (∇(xyz))":              { p: "y*z",       q: "x*z",       r: "x*y" },
+  "F = ⟨-y/(x²+y²), x/(x²+y²), 0⟩":         { p: "-y/(x^2+y^2)", q: "x/(x^2+y^2)", r: "0" },
+  "F = ⟨x², y², z²⟩":                        { p: "x^2",       q: "y^2",       r: "z^2" },
+};
+
+// ─── Known exact values (keyed by canonical input) ───
+// Canonical key: x|y|z|tmin|tmax|P|Q|R
+const EXACT = {
+  // Rotational field around unit circle ccw: ∫(-y)dx + x dy = 2π
+  "cos(t)|sin(t)|0|0|2*pi|-y|x|0":        "Exact: 2π ≈ 6.2832",
+  // Rotational field around unit circle cw: -2π
+  "cos(-t)|sin(-t)|0|0|2*pi|-y|x|0":      "Exact: -2π ≈ -6.2832",
+  // Radial field along unit circle ccw: 0 (F perpendicular to motion)
+  "cos(t)|sin(t)|0|0|2*pi|x|y|0":         "Exact: 0 (F ⊥ motion)",
+  // Conservative f=xy, line (0,0)→(1,1): f(1,1)-f(0,0) = 1
+  "t|t|0|0|1|y|x|0":                      "Exact: 1 (conservative)",
+  // Conservative f=xy, line (0,0)→(3,4): f(3,4)-f(0,0) = 12
+  "3*t|4*t|0|0|1|y|x|0":                  "Exact: 12 (conservative)",
+  // Conservative f=x²+y²+z², helix (1,0,0)→(1,0,2π): 4π²
+  "cos(t)|sin(t)|t|0|2*pi|2*x|2*y|2*z":    "Exact: 4π² ≈ 39.4784",
+  // Constant F=(1,0,0), line (0,0)→(3,4): 3
+  "3*t|4*t|0|0|1|1|0|0":                  "Exact: 3",
+  // F=(y,x), parabola y=x² from 0 to 2: xy|₀² = 8
+  "t|t^2|0|0|2|y|x|0":                    "Exact: 8 (conservative)",
+};
+
+// ─── State ───
+let activeCurve = null;
+let activeField = null;
+let lastInputs = null;
+
+// ─── Compile helpers ───
+function compileCurve(xE, yE, zE, tminE, tmaxE) {
+  const xC = math.compile(xE);
+  const yC = math.compile(yE);
+  const zC = math.compile(zE);
+  const tmin = math.evaluate(tminE);
+  const tmax = math.evaluate(tmaxE);
+  if (!isFinite(tmin) || !isFinite(tmax)) throw new Error("t bounds must be numeric");
+  if (tmax <= tmin) throw new Error("tmax must be greater than tmin");
+
+  const r = (t) => {
+    const scope = { t };
+    const pt = [xC.evaluate(scope), yC.evaluate(scope), zC.evaluate(scope)];
+    if (!isFinite(pt[0]) || !isFinite(pt[1]) || !isFinite(pt[2]))
+      throw new Error("curve evaluates to non-finite value");
+    return pt;
+  };
+  const h = 1e-4;
+  const dr = (t) => {
+    const a = r(t + h), b = r(t - h);
+    return [(a[0]-b[0])/(2*h), (a[1]-b[1])/(2*h), (a[2]-b[2])/(2*h)];
+  };
+  r(tmin); r(tmax); r((tmin+tmax)/2);
+
+  let dim = 2;
+  for (let i = 0; i <= 10; i++) {
+    const tt = tmin + (tmax - tmin) * i / 10;
+    if (Math.abs(zC.evaluate({ t: tt })) > 1e-9) { dim = 3; break; }
+  }
+  return { r, dr, tmin, tmax, dim };
+}
+
+function compileField(pE, qE, rE) {
+  const P = math.compile(pE);
+  const Q = math.compile(qE);
+  const R = math.compile(rE);
+  const fn = (x, y, z) => {
+    const scope = { x, y, z };
+    const v = [P.evaluate(scope), Q.evaluate(scope), R.evaluate(scope)];
+    for (let i = 0; i < 3; i++) if (!isFinite(v[i])) v[i] = 0;
+    return v;
+  };
+  fn(1, 1, 1);
+  return { fn, label: `F = ⟨${pE}, ${qE}, ${rE}⟩` };
+}
+
+// ─── Inputs ───
+function getInputs() {
+  return {
+    x: document.getElementById("xInput").value.trim(),
+    y: document.getElementById("yInput").value.trim(),
+    z: document.getElementById("zInput").value.trim(),
+    tmin: document.getElementById("tminInput").value.trim(),
+    tmax: document.getElementById("tmaxInput").value.trim(),
+    p: document.getElementById("pInput").value.trim(),
+    q: document.getElementById("qInput").value.trim(),
+    r: document.getElementById("rInput").value.trim(),
+  };
+}
+
+function setInputs(x, y, z, tmin, tmax, p, q, r) {
+  if (x !== undefined) document.getElementById("xInput").value = x;
+  if (y !== undefined) document.getElementById("yInput").value = y;
+  if (z !== undefined) document.getElementById("zInput").value = z;
+  if (tmin !== undefined) document.getElementById("tminInput").value = tmin;
+  if (tmax !== undefined) document.getElementById("tmaxInput").value = tmax;
+  if (p !== undefined) document.getElementById("pInput").value = p;
+  if (q !== undefined) document.getElementById("qInput").value = q;
+  if (r !== undefined) document.getElementById("rInput").value = r;
+}
+
+function clearErrorStyles() {
+  ["xInput","yInput","zInput","tminInput","tmaxInput","pInput","qInput","rInput"].forEach(id => {
+    document.getElementById(id).classList.remove("err");
+  });
+}
+
+function apply() {
+  clearErrorStyles();
+  const inp = getInputs();
+  const errEl = document.getElementById("errMsg");
+  errEl.textContent = "";
+  let which = "";
+  try {
+    which = "curve";
+    const newCurve = compileCurve(inp.x, inp.y, inp.z, inp.tmin, inp.tmax);
+    which = "field";
+    const newField = compileField(inp.p, inp.q, inp.r);
+    activeCurve = newCurve;
+    activeField = newField;
+    lastInputs = inp;
+    updatePresetHighlights();
+    rebuildContent();
+  } catch (e) {
+    errEl.textContent = `Error in ${which}: ${e.message}`;
+    if (which === "curve") {
+      ["xInput","yInput","zInput","tminInput","tmaxInput"].forEach(id => document.getElementById(id).classList.add("err"));
+    } else {
+      ["pInput","qInput","rInput"].forEach(id => document.getElementById(id).classList.add("err"));
+    }
+  }
+}
+
+// ─── Three.js setup ───
+const W = 720, H = 740;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1324);
+
+const camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 1000);
+const DEFAULT_CAM = new THREE.Vector3(8, 8, 7);
+camera.position.copy(DEFAULT_CAM);
+camera.up.set(0, 0, 1);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.getElementById("canvasWrap").appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 0, 0);
+controls.update();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.45);
+dirLight.position.set(10, 10, 15);
+scene.add(dirLight);
+
+// ─── Axes ───
+const axisGroup = new THREE.Group();
+scene.add(axisGroup);
+let showGrid = true;
+
+function makeTextSprite(txt, color) {
+  const cv = document.createElement("canvas");
+  cv.width = 64; cv.height = 64;
+  const c = cv.getContext("2d");
+  c.fillStyle = color;
+  c.font = "bold 42px system-ui";
+  c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillText(txt, 32, 32);
+  const tex = new THREE.CanvasTexture(cv);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+  sp.scale.set(0.5, 0.5, 0.5);
+  return sp;
+}
+
+function buildAxes() {
+  axisGroup.clear();
+  if (!showGrid) return;
+  const L = 5;
+  const grid = new THREE.GridHelper(L*2, L*2, 0x1e293b, 0x1e293b);
+  grid.rotation.x = Math.PI/2;
+  axisGroup.add(grid);
+
+  const axMat = (color) => new THREE.LineBasicMaterial({ color });
+  function axisLine(end, color) {
+    const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), end]);
+    return new THREE.Line(g, axMat(color));
+  }
+  axisGroup.add(axisLine(new THREE.Vector3(L, 0, 0), 0xf87171));
+  axisGroup.add(axisLine(new THREE.Vector3(0, L, 0), 0x4ade80));
+  axisGroup.add(axisLine(new THREE.Vector3(0, 0, L), 0x60a5fa));
+
+  function arrowHead(pos, color, axis) {
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.25, 16), new THREE.MeshBasicMaterial({ color }));
+    m.position.copy(pos);
+    if (axis === 'x') m.rotation.z = -Math.PI/2;
+    if (axis === 'z') m.rotation.x = Math.PI/2;
+    return m;
+  }
+  axisGroup.add(arrowHead(new THREE.Vector3(L, 0, 0), 0xf87171, 'x'));
+  axisGroup.add(arrowHead(new THREE.Vector3(0, L, 0), 0x4ade80, 'y'));
+  axisGroup.add(arrowHead(new THREE.Vector3(0, 0, L), 0x60a5fa, 'z'));
+
+  const lx = makeTextSprite("x", "#f87171"); lx.position.set(L+0.4, 0, 0); axisGroup.add(lx);
+  const ly = makeTextSprite("y", "#4ade80"); ly.position.set(0, L+0.4, 0); axisGroup.add(ly);
+  const lz = makeTextSprite("z", "#60a5fa"); lz.position.set(0, 0, L+0.4); axisGroup.add(lz);
+}
+buildAxes();
+
+const contentGroup = new THREE.Group();
+scene.add(contentGroup);
+
+// ─── Display state ───
+let n = 60;
+let showArrowsOnCurve = true;
+let showTangent = false;
+let showCurtain = true;
+let showPanels = false;
+let showFieldGrid = false;
+let showColorCurve = true;
+let arrowScale = 1.0;
+let gridDensity = 7;
+let sweepT = null;
+let sweepAnim = null;
+
+// ─── Compute ───
+function computeIntegralAndSamples(curve, field, nSub) {
+  const h = (curve.tmax - curve.tmin) / nSub;
+  const samples = [];
+  let total = 0;
+  let wMin = Infinity, wMax = -Infinity;
+  let fAbsMax = 0;
+  for (let i = 0; i < nSub; i++) {
+    const tMid = curve.tmin + (i + 0.5) * h;
+    const pt = curve.r(tMid);
+    const drv = curve.dr(tMid);
+    const F = field.fn(pt[0], pt[1], pt[2]);
+    const speed = Math.sqrt(drv[0]*drv[0] + drv[1]*drv[1] + drv[2]*drv[2]) || 1e-12;
+    const T = [drv[0]/speed, drv[1]/speed, drv[2]/speed];
+    const Fdotdr = F[0]*drv[0] + F[1]*drv[1] + F[2]*drv[2];  // F · r'(t)
+    const FdotT = F[0]*T[0] + F[1]*T[1] + F[2]*T[2];           // scalar component
+    const dW = Fdotdr * h;                                     // piece of work
+    total += dW;
+    const fMag = Math.sqrt(F[0]*F[0]+F[1]*F[1]+F[2]*F[2]);
+    if (fMag > fAbsMax) fAbsMax = fMag;
+    if (FdotT < wMin) wMin = FdotT;
+    if (FdotT > wMax) wMax = FdotT;
+    samples.push({ t: tMid, pt, F, drv, T, speed, FdotT, dW, h });
+  }
+  return { total, samples, wMin, wMax, fAbsMax };
+}
+
+function densePiecePoints(curve, samples) {
+  const pts = [];
+  for (let i = 0; i <= samples; i++) {
+    const tt = curve.tmin + (curve.tmax - curve.tmin) * i / samples;
+    pts.push(curve.r(tt));
+  }
+  return pts;
+}
+
+function signColor(value, maxAbs) {
+  const t = Math.max(-1, Math.min(1, value / (maxAbs || 1)));
+  if (t >= 0) {
+    // green: pale → strong
+    return new THREE.Color(0.3 + 0.2*(1-t), 0.9, 0.4 + 0.2*(1-t));
+  } else {
+    // red
+    const a = -t;
+    return new THREE.Color(0.95, 0.4 + 0.2*(1-a), 0.4 + 0.2*(1-a));
+  }
+}
+
+// ─── Arrow helper ───
+function makeArrow(origin, vec, color, scale=1) {
+  const len = Math.sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]) * scale;
+  if (len < 1e-6) return null;
+  const dir = new THREE.Vector3(vec[0], vec[1], vec[2]).normalize();
+  const head = Math.min(0.18, len * 0.25);
+  const helper = new THREE.ArrowHelper(dir, new THREE.Vector3(origin[0], origin[1], origin[2]), len, color, head, head*0.5);
+  return helper;
+}
+
+// ─── Build scene content ───
+function rebuildContent() {
+  if (!activeCurve || !activeField) return;
+
+  while (contentGroup.children.length) {
+    const c = contentGroup.children.pop();
+    c.traverse?.(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
+        else o.material.dispose();
+      }
+    });
+  }
+
+  let result;
+  try {
+    result = computeIntegralAndSamples(activeCurve, activeField, n);
+  } catch (e) {
+    document.getElementById("errMsg").textContent = `Evaluation error: ${e.message}`;
+    return;
+  }
+
+  const effectiveT = sweepT !== null ? sweepT : 1;
+  const shownCount = Math.max(1, Math.floor(result.samples.length * effectiveT));
+
+  // Scale factor for arrows: normalize largest arrow to ~0.8 units at scale=1
+  const arrowNorm = result.fAbsMax > 1e-9 ? 0.8 / result.fAbsMax : 1;
+  const arrowFactor = arrowNorm * arrowScale;
+  const wAbsMax = Math.max(Math.abs(result.wMin), Math.abs(result.wMax), 1e-6);
+
+  // 1. Curve (colored by F·T sign if enabled)
+  const dense = densePiecePoints(activeCurve, 400);
+  if (showColorCurve) {
+    // Build colored line segments
+    const geo = new THREE.BufferGeometry();
+    const positions = [];
+    const colors = [];
+    for (let i = 0; i < dense.length - 1; i++) {
+      const p0 = dense[i], p1 = dense[i+1];
+      const tMid = activeCurve.tmin + (activeCurve.tmax - activeCurve.tmin) * (i + 0.5) / (dense.length - 1);
+      const pm = activeCurve.r(tMid);
+      const F = activeField.fn(pm[0], pm[1], pm[2]);
+      const drv = activeCurve.dr(tMid);
+      const sp = Math.sqrt(drv[0]*drv[0]+drv[1]*drv[1]+drv[2]*drv[2]) || 1e-12;
+      const T = [drv[0]/sp, drv[1]/sp, drv[2]/sp];
+      const FdotT = F[0]*T[0]+F[1]*T[1]+F[2]*T[2];
+      const c = signColor(FdotT, wAbsMax);
+      positions.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2]);
+      colors.push(c.r, c.g, c.b, c.r, c.g, c.b);
+    }
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    const mat = new THREE.LineBasicMaterial({ vertexColors: true, linewidth: 3 });
+    const line = new THREE.LineSegments(geo, mat);
+    contentGroup.add(line);
+  } else {
+    const pts = dense.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const mat = new THREE.LineBasicMaterial({ color: 0xfbbf24 });
+    contentGroup.add(new THREE.Line(geo, mat));
+  }
+
+  // Start/End markers
+  const start = activeCurve.r(activeCurve.tmin);
+  const end = activeCurve.r(activeCurve.tmax);
+  const startMarker = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 16),
+    new THREE.MeshBasicMaterial({ color: 0x4ade80 }));
+  startMarker.position.set(start[0], start[1], start[2]);
+  contentGroup.add(startMarker);
+  const endMarker = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 16),
+    new THREE.MeshBasicMaterial({ color: 0xf87171 }));
+  endMarker.position.set(end[0], end[1], end[2]);
+  contentGroup.add(endMarker);
+
+  // 2. Arrows F along curve (at each Riemann sample)
+  if (showArrowsOnCurve) {
+    const stepShown = Math.max(1, Math.ceil(result.samples.length / 30)); // cap at ~30 arrows
+    for (let i = 0; i < shownCount; i += stepShown) {
+      const s = result.samples[i];
+      const a = makeArrow(s.pt, s.F, 0xfbbf24, arrowFactor);
+      if (a) contentGroup.add(a);
+    }
+  }
+
+  // 3. Tangent T and projection F·T at each shown sample
+  if (showTangent) {
+    const stepShown = Math.max(1, Math.ceil(result.samples.length / 20));
+    for (let i = 0; i < shownCount; i += stepShown) {
+      const s = result.samples[i];
+      // unit tangent
+      const tArr = makeArrow(s.pt, s.T, 0x38bdf8, 0.6);
+      if (tArr) contentGroup.add(tArr);
+      // projection F·T along T
+      if (Math.abs(s.FdotT) > 1e-6) {
+        const projVec = [s.T[0]*s.FdotT, s.T[1]*s.FdotT, s.T[2]*s.FdotT];
+        const col = s.FdotT >= 0 ? 0x4ade80 : 0xf87171;
+        const p = makeArrow(s.pt, projVec, col, arrowFactor);
+        if (p) contentGroup.add(p);
+      }
+    }
+  }
+
+  // 4. Work curtain (signed strip with height = F·T, on normal to curve in z-direction or binormal)
+  if (showCurtain) {
+    const curtainGeo = new THREE.BufferGeometry();
+    const pos = [], col = [], idx = [];
+    const heightNorm = 1.5 / wAbsMax;  // max height ~1.5 units
+
+    // Build curtain by sweeping a normal vector along the curve
+    const M = Math.max(80, result.samples.length * 2);
+    let vtx = 0;
+    let prevTop = null, prevBot = null;
+    for (let i = 0; i <= M; i++) {
+      const tt = activeCurve.tmin + (activeCurve.tmax - activeCurve.tmin) * i / M;
+      const pt = activeCurve.r(tt);
+      const drv = activeCurve.dr(tt);
+      const speed = Math.sqrt(drv[0]*drv[0]+drv[1]*drv[1]+drv[2]*drv[2]) || 1e-12;
+      const T = [drv[0]/speed, drv[1]/speed, drv[2]/speed];
+      const F = activeField.fn(pt[0], pt[1], pt[2]);
+      const FdotT = F[0]*T[0]+F[1]*T[1]+F[2]*T[2];
+
+      // Normal direction: use z-up for 2D, or binormal for 3D
+      let N;
+      if (activeCurve.dim === 2) {
+        N = [0, 0, 1];
+      } else {
+        // approximate binormal via cross of T with global up; fallback to horizontal
+        const up = [0, 0, 1];
+        let b = [T[1]*up[2]-T[2]*up[1], T[2]*up[0]-T[0]*up[2], T[0]*up[1]-T[1]*up[0]];
+        let bn = Math.sqrt(b[0]*b[0]+b[1]*b[1]+b[2]*b[2]);
+        if (bn < 1e-6) b = [1,0,0], bn = 1;
+        N = [b[0]/bn, b[1]/bn, b[2]/bn];
+      }
+
+      const height = FdotT * heightNorm;
+      const top = [pt[0] + N[0]*height, pt[1] + N[1]*height, pt[2] + N[2]*height];
+      const bot = [pt[0], pt[1], pt[2]];
+      const c = signColor(FdotT, wAbsMax);
+
+      pos.push(bot[0], bot[1], bot[2]);
+      pos.push(top[0], top[1], top[2]);
+      col.push(c.r, c.g, c.b, 0.6);
+      col.push(c.r, c.g, c.b, 0.4);
+
+      if (i > 0) {
+        const a = vtx - 2, b = vtx - 1, cc = vtx, d = vtx + 1;
+        idx.push(a, b, cc);
+        idx.push(b, d, cc);
+      }
+      vtx += 2;
+    }
+    curtainGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    curtainGeo.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+    curtainGeo.setIndex(idx);
+    curtainGeo.computeVertexNormals();
+    const curtainMat = new THREE.MeshBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.65, side: THREE.DoubleSide
+    });
+    // Note: we use rgb-only colors with alpha via material opacity since Float32 with size=4 not fully supported; fallback is uniform opacity.
+    const cGeo = new THREE.BufferGeometry();
+    const posArr = curtainGeo.attributes.position.array;
+    const colRGB = new Float32Array(col.length * 3 / 4);
+    for (let i = 0, j = 0; i < col.length; i += 4, j += 3) {
+      colRGB[j] = col[i]; colRGB[j+1] = col[i+1]; colRGB[j+2] = col[i+2];
+    }
+    cGeo.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+    cGeo.setAttribute('color', new THREE.Float32BufferAttribute(colRGB, 3));
+    cGeo.setIndex(idx);
+    const mesh = new THREE.Mesh(cGeo, curtainMat);
+    contentGroup.add(mesh);
+  }
+
+  // 4b. Panel dividers (vertical lines at partition boundaries t_i)
+  if (showPanels && showCurtain) {
+    const heightNorm = 1.5 / wAbsMax;
+    const h = (activeCurve.tmax - activeCurve.tmin) / n;
+    const linePos = [];
+    const tMaxShown = activeCurve.tmin + (activeCurve.tmax - activeCurve.tmin) * effectiveT;
+    for (let i = 0; i <= n; i++) {
+      const ti = activeCurve.tmin + i * h;
+      if (ti > tMaxShown + 1e-9) break;
+      const pt = activeCurve.r(ti);
+      const drv = activeCurve.dr(ti);
+      const sp = Math.sqrt(drv[0]*drv[0]+drv[1]*drv[1]+drv[2]*drv[2]) || 1e-12;
+      const T = [drv[0]/sp, drv[1]/sp, drv[2]/sp];
+      const F = activeField.fn(pt[0], pt[1], pt[2]);
+      const FdotT = F[0]*T[0]+F[1]*T[1]+F[2]*T[2];
+      let N;
+      if (activeCurve.dim === 2) {
+        N = [0, 0, 1];
+      } else {
+        const up = [0, 0, 1];
+        let b = [T[1]*up[2]-T[2]*up[1], T[2]*up[0]-T[0]*up[2], T[0]*up[1]-T[1]*up[0]];
+        let bn = Math.sqrt(b[0]*b[0]+b[1]*b[1]+b[2]*b[2]);
+        if (bn < 1e-6) b = [1,0,0], bn = 1;
+        N = [b[0]/bn, b[1]/bn, b[2]/bn];
+      }
+      const height = FdotT * heightNorm;
+      const top = [pt[0] + N[0]*height, pt[1] + N[1]*height, pt[2] + N[2]*height];
+      linePos.push(pt[0], pt[1], pt[2], top[0], top[1], top[2]);
+    }
+    if (linePos.length > 0) {
+      const pg = new THREE.BufferGeometry();
+      pg.setAttribute("position", new THREE.Float32BufferAttribute(linePos, 3));
+      contentGroup.add(new THREE.LineSegments(pg, new THREE.LineBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.85 })));
+    }
+  }
+
+  // 5. Full field grid
+  if (showFieldGrid) {
+    const extent = Math.max(2, 1.2 * Math.max(
+      Math.abs(start[0]), Math.abs(start[1]), Math.abs(end[0]), Math.abs(end[1]),
+      ...result.samples.map(s => Math.max(Math.abs(s.pt[0]), Math.abs(s.pt[1])))
+    ));
+    const zExtent = activeCurve.dim === 3 ? extent * 0.6 : 0;
+    const step = (2 * extent) / gridDensity;
+    for (let i = -gridDensity/2; i <= gridDensity/2; i++) {
+      for (let j = -gridDensity/2; j <= gridDensity/2; j++) {
+        if (activeCurve.dim === 2) {
+          const x = i*step, y = j*step, z = 0;
+          const F = activeField.fn(x, y, z);
+          const a = makeArrow([x,y,z], F, 0x94a3b8, arrowFactor * 0.7);
+          if (a) contentGroup.add(a);
+        } else {
+          for (let k = -2; k <= 2; k++) {
+            const x = i*step, y = j*step, z = k*step*0.6;
+            const F = activeField.fn(x, y, z);
+            const a = makeArrow([x,y,z], F, 0x94a3b8, arrowFactor * 0.5);
+            if (a) contentGroup.add(a);
+          }
+        }
+      }
+    }
+  }
+
+  // Overlay text
+  const signSpan = result.total >= 0 ? `<span class="sign-positive">${result.total.toFixed(4)}</span>` : `<span class="sign-negative">${result.total.toFixed(4)}</span>`;
+  document.getElementById("ovCurve").textContent = `r(t) = ⟨${lastInputs.x}, ${lastInputs.y}, ${lastInputs.z}⟩,  t ∈ [${lastInputs.tmin}, ${lastInputs.tmax}]`;
+  document.getElementById("ovField").textContent = `F = ⟨${lastInputs.p}, ${lastInputs.q}, ${lastInputs.r}⟩`;
+  document.getElementById("ovWork").innerHTML = `Work ≈ ${result.total.toFixed(4)}  (n = ${n})`;
+  document.getElementById("intVal").textContent = result.total.toFixed(4);
+
+  // Exact match lookup
+  const key = `${lastInputs.x}|${lastInputs.y}|${lastInputs.z}|${lastInputs.tmin}|${lastInputs.tmax}|${lastInputs.p}|${lastInputs.q}|${lastInputs.r}`;
+  const exactNote = document.getElementById("exactNote");
+  if (EXACT[key]) exactNote.textContent = EXACT[key];
+  else exactNote.textContent = `midpoint Riemann sum, n = ${n}`;
+}
+
+// ─── Presets UI ───
+function buildPresetButtons() {
+  const cWrap = document.getElementById("curves");
+  cWrap.innerHTML = "";
+  Object.entries(CURVE_PRESETS).forEach(([name, preset]) => {
+    const b = document.createElement("button");
+    b.className = "opt-btn";
+    b.textContent = name;
+    b.dataset.preset = name;
+    b.onclick = () => {
+      setInputs(preset.x, preset.y, preset.z, preset.tmin, preset.tmax);
+      apply();
+    };
+    cWrap.appendChild(b);
+  });
+  const fWrap = document.getElementById("fields");
+  fWrap.innerHTML = "";
+  Object.entries(FIELD_PRESETS).forEach(([name, preset]) => {
+    const b = document.createElement("button");
+    b.className = "opt-btn";
+    b.textContent = name;
+    b.dataset.preset = name;
+    b.onclick = () => {
+      setInputs(undefined, undefined, undefined, undefined, undefined, preset.p, preset.q, preset.r);
+      apply();
+    };
+    fWrap.appendChild(b);
+  });
+}
+
+function updatePresetHighlights() {
+  if (!lastInputs) return;
+  document.querySelectorAll("#curves .opt-btn").forEach(b => {
+    const p = CURVE_PRESETS[b.dataset.preset];
+    const match = p.x === lastInputs.x && p.y === lastInputs.y && p.z === lastInputs.z
+      && p.tmin === lastInputs.tmin && p.tmax === lastInputs.tmax;
+    b.classList.toggle("active", match);
+  });
+  document.querySelectorAll("#fields .opt-btn").forEach(b => {
+    const p = FIELD_PRESETS[b.dataset.preset];
+    const match = p.p === lastInputs.p && p.q === lastInputs.q && p.r === lastInputs.r;
+    b.classList.toggle("active", match);
+  });
+}
+
+// ─── Animation loop ───
+function render() {
+  requestAnimationFrame(render);
+  controls.update();
+  renderer.render(scene, camera);
+}
+render();
+
+// ─── Controls wiring ───
+document.getElementById("applyBtn").onclick = apply;
+["xInput","yInput","zInput","tminInput","tmaxInput","pInput","qInput","rInput"].forEach(id => {
+  document.getElementById(id).addEventListener("keydown", e => { if (e.key === "Enter") apply(); });
+});
+document.getElementById("n").addEventListener("input", e => {
+  n = parseInt(e.target.value);
+  document.getElementById("nVal").textContent = n;
+  rebuildContent();
+});
+document.getElementById("ascale").addEventListener("input", e => {
+  arrowScale = parseInt(e.target.value) / 100;
+  document.getElementById("asVal").textContent = arrowScale.toFixed(2);
+  rebuildContent();
+});
+document.getElementById("gdens").addEventListener("input", e => {
+  gridDensity = parseInt(e.target.value);
+  document.getElementById("gdVal").textContent = gridDensity;
+  rebuildContent();
+});
+document.getElementById("chkArrowsOnCurve").addEventListener("change", e => { showArrowsOnCurve = e.target.checked; rebuildContent(); });
+document.getElementById("chkTangent").addEventListener("change", e => { showTangent = e.target.checked; rebuildContent(); });
+document.getElementById("chkCurtain").addEventListener("change", e => { showCurtain = e.target.checked; rebuildContent(); });
+document.getElementById("chkPanels").addEventListener("change", e => { showPanels = e.target.checked; rebuildContent(); });
+document.getElementById("chkFieldGrid").addEventListener("change", e => { showFieldGrid = e.target.checked; rebuildContent(); });
+document.getElementById("chkColorCurve").addEventListener("change", e => { showColorCurve = e.target.checked; rebuildContent(); });
+document.getElementById("chkGrid").addEventListener("change", e => {
+  showGrid = e.target.checked;
+  buildAxes();
+});
+document.getElementById("resetBtn").onclick = () => {
+  camera.position.copy(DEFAULT_CAM);
+  controls.target.set(0, 0, 0);
+  controls.update();
+};
+document.getElementById("playBtn").onclick = () => {
+  if (sweepAnim) { clearInterval(sweepAnim); sweepAnim = null; sweepT = null; rebuildContent(); return; }
+  sweepT = 0;
+  const dur = 2500;
+  const start = performance.now();
+  function step() {
+    const now = performance.now();
+    sweepT = Math.min(1, (now - start) / dur);
+    rebuildContent();
+    if (sweepT < 1) sweepAnim = requestAnimationFrame(step);
+    else { sweepT = null; sweepAnim = null; rebuildContent(); }
+  }
+  step();
+};
+document.getElementById("resetAllBtn").onclick = (e) => {
+  e.preventDefault();
+  setInputs("cos(t)","sin(t)","0","0","2*pi","-y","x","0");
+  apply();
+};
+
+// ─── Init ───
+buildPresetButtons();
+apply();
+</script>
+</body>
+</html>

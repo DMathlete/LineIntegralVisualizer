@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 53: Green's Theorem Visualizer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 18px; min-height: 100vh; }
+  h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  #subtitle { color: #fbbf24; font-size: 13px; font-style: italic; margin-bottom: 6px; text-align: center; max-width: 960px; }
+  #formula { color: #cbd5e1; font-size: 14px; margin-bottom: 10px; text-align: center; font-family: "Times New Roman", serif; }
+  #nav-links { font-size: 12px; color: #64748b; margin-bottom: 10px; }
+  #nav-links a { color: #38bdf8; text-decoration: none; margin: 0 6px; }
+  #nav-links a:hover { text-decoration: underline; }
+  #main { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  #canvasWrap { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid #334155; background: #0b1324; }
+  #canvasWrap canvas { display: block; }
+  #overlay { position: absolute; top: 10px; left: 10px; font: 12px "Courier New", monospace; color: #e2e8f0; pointer-events: none; background: rgba(11,19,36,0.75); padding: 6px 10px; border-radius: 4px; max-width: 420px; }
+  #hint { position: absolute; bottom: 10px; left: 10px; font-size: 11px; color: #64748b; pointer-events: none; background: rgba(11,19,36,0.6); padding: 3px 6px; border-radius: 3px; }
+  .panel { background: #1e293b; border-radius: 8px; border: 1px solid #334155; padding: 14px; width: 340px; max-height: 960px; overflow-y: auto; }
+  .label { color: #fbbf24; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .divider { border-top: 1px solid #334155; margin: 12px 0; padding-top: 12px; }
+  label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-bottom: 6px; }
+  .slider-label { font-size: 12px; margin-bottom: 4px; margin-top: 6px; }
+  input[type="range"] { width: 100%; accent-color: #fbbf24; }
+  input[type="text"] {
+    background: #0b1324; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px;
+    padding: 5px 8px; font-family: "Courier New", monospace; font-size: 13px; width: 100%;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus { outline: none; border-color: #fbbf24; }
+  input[type="text"].err { border-color: #ef4444; }
+  .input-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .input-row .lbl { font-family: "Courier New", monospace; font-size: 12px; color: #94a3b8; min-width: 42px; text-align: right; }
+  .pair-row { display: flex; align-items: center; gap: 4px; margin-bottom: 5px; }
+  .pair-row .lbl { font-family: "Courier New", monospace; font-size: 12px; color: #94a3b8; min-width: 42px; text-align: right; }
+  .pair-row input[type="text"] { flex: 1; }
+  .result-box { background: #0b1324; border-radius: 8px; padding: 10px; margin-top: 8px; font-family: "Courier New", monospace; }
+  .result-box .path-label { font-size: 11px; margin-bottom: 2px; color: #94a3b8; }
+  .result-box .path-value { font-size: 15px; font-weight: 700; }
+  .match-pill { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; font-family: system-ui; }
+  .match-pill.ok { background: rgba(74,222,128,0.18); color: #4ade80; border: 1px solid #4ade80; }
+  .match-pill.bad { background: rgba(248,113,113,0.18); color: #f87171; border: 1px solid #f87171; }
+  .hint { font-size: 11px; line-height: 1.5; color: #94a3b8; }
+  .err-msg { color: #f87171; font-size: 11px; margin-top: 6px; min-height: 14px; font-family: "Courier New", monospace; }
+  .btn-row { display: flex; gap: 6px; }
+  .action-btn { flex: 1; padding: 7px; border-radius: 6px; border: 1px solid #fbbf24; background: rgba(251,191,36,0.15); color: #fbbf24; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+  .action-btn:hover { background: rgba(251,191,36,0.3); }
+  .secondary-btn { flex: 1; padding: 7px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+  .secondary-btn:hover { border-color: #38bdf8; color: #38bdf8; }
+  .mode-toggle { display: flex; gap: 0; border-radius: 6px; overflow: hidden; border: 1px solid #334155; margin-bottom: 10px; }
+  .mode-toggle button { flex: 1; padding: 8px; border: 0; background: #1e293b; color: #e2e8f0; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+  .mode-toggle button.active { background: rgba(251,191,36,0.25); color: #fbbf24; }
+  .syntax-help { font-size: 10px; color: #64748b; font-family: "Courier New", monospace; margin-top: 4px; line-height: 1.4; }
+  .circ-color { color: #a78bfa; }
+  .flux-color { color: #34d399; }
+  .colorbar { height: 10px; border-radius: 3px; margin-top: 4px;
+    background: linear-gradient(to right, #ef4444 0%, #fecaca 25%, #e2e8f0 50%, #bae6fd 75%, #3b82f6 100%); }
+  .colorbar-labels { display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; font-family: "Courier New", monospace; margin-top: 2px; }
+</style>
+</head>
+<body>
+<h1>Lesson 53: Green's Theorem Visualizer</h1>
+<p id="subtitle">A closed curve, the region it bounds, and Green's Theorem verifying itself on both sides.</p>
+<div id="formula">
+  Circulation: &nbsp;∮<sub>∂D</sub> P dx + Q dy = ∬<sub>D</sub> (Q<sub>x</sub> − P<sub>y</sub>) dA
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  Flux: &nbsp;∮<sub>∂D</sub> P dy − Q dx = ∬<sub>D</sub> (P<sub>x</sub> + Q<sub>y</sub>) dA
+</div>
+<div id="nav-links">
+  <a href="index.html">← Calculus Tools</a>
+  <span style="color:#334155;">|</span>
+  <a href="Line_Integral_Visualizer.html">Scalar Line Integral</a>
+  <span style="color:#334155;">|</span>
+  <a href="Vector_Line_Integral_Visualizer.html">Vector Line Integral</a>
+  <span style="color:#334155;">|</span>
+  <a href="Path_Independence_Visualizer.html">Path Independence (L52)</a>
+  <span style="color:#334155;">|</span>
+  <a href="#" id="resetAllBtn">Reset to defaults</a>
+</div>
+
+<div id="main">
+  <div id="canvasWrap">
+    <canvas id="plot" width="720" height="720"></canvas>
+    <div id="overlay">
+      <div id="ovField"></div>
+      <div id="ovProbe" style="color:#a78bfa; margin-top:3px;"></div>
+    </div>
+    <div id="hint">Hover to probe F, curl, div at a point</div>
+  </div>
+
+  <div class="panel">
+    <div class="btn-row" style="margin-bottom: 12px;">
+      <button class="action-btn" id="applyBtn">Apply (↵)</button>
+      <button class="secondary-btn" id="microBtn">▶ Microcurl</button>
+    </div>
+
+    <div class="mode-toggle">
+      <button id="modeCirc" class="active">Curl (circulation)</button>
+      <button id="modeFlux">Div (flux)</button>
+    </div>
+
+    <div class="label">Vector Field F = ⟨P, Q⟩</div>
+    <div class="input-row">
+      <span class="lbl">P =</span>
+      <input type="text" id="pInput" value="-y">
+    </div>
+    <div class="input-row">
+      <span class="lbl">Q =</span>
+      <input type="text" id="qInput" value="x">
+    </div>
+
+    <div class="divider">
+      <div class="label">Closed Curve ∂D: r(t) = ⟨x(t), y(t)⟩</div>
+      <div class="pair-row">
+        <span class="lbl">x(t) =</span>
+        <input type="text" id="xInput" value="cos(t)">
+      </div>
+      <div class="pair-row">
+        <span class="lbl">y(t) =</span>
+        <input type="text" id="yInput" value="sin(t)">
+      </div>
+      <div class="pair-row">
+        <span class="lbl">t ∈ [</span>
+        <input type="text" id="tminInput" value="0" style="max-width:80px;">
+        <span class="lbl" style="min-width:10px;">,</span>
+        <input type="text" id="tmaxInput" value="2*pi" style="max-width:80px;">
+        <span class="lbl" style="min-width:10px; text-align:left;">]</span>
+      </div>
+      <div class="syntax-help" style="margin-top: 6px;">
+        Curve must be closed: r(t<sub>min</sub>) = r(t<sub>max</sub>).
+        Positive orientation = CCW. Use <code>pi</code>, <code>cos</code>, <code>sin</code>, etc.
+      </div>
+    </div>
+
+    <div class="err-msg" id="errMsg"></div>
+
+    <div class="divider">
+      <div class="label circ-color">Circulation Form</div>
+      <div class="result-box">
+        <div class="path-label">∮<sub>∂D</sub> P dx + Q dy &nbsp;<span style="color:#64748b;">(line integral)</span></div>
+        <div class="path-value circ-color" id="circLine">—</div>
+        <div class="path-label" style="margin-top:8px;">∬<sub>D</sub> (Q<sub>x</sub> − P<sub>y</sub>) dA &nbsp;<span style="color:#64748b;">(double integral)</span></div>
+        <div class="path-value circ-color" id="circDouble">—</div>
+        <div class="path-label" style="margin-top:8px;">|difference|<span id="circMatch" class="match-pill"></span></div>
+        <div class="path-value" style="color:#fbbf24;" id="circDiff">—</div>
+      </div>
+    </div>
+
+    <div class="divider">
+      <div class="label flux-color">Flux Form</div>
+      <div class="result-box">
+        <div class="path-label">∮<sub>∂D</sub> P dy − Q dx &nbsp;<span style="color:#64748b;">(line integral)</span></div>
+        <div class="path-value flux-color" id="fluxLine">—</div>
+        <div class="path-label" style="margin-top:8px;">∬<sub>D</sub> (P<sub>x</sub> + Q<sub>y</sub>) dA &nbsp;<span style="color:#64748b;">(double integral)</span></div>
+        <div class="path-value flux-color" id="fluxDouble">—</div>
+        <div class="path-label" style="margin-top:8px;">|difference|<span id="fluxMatch" class="match-pill"></span></div>
+        <div class="path-value" style="color:#fbbf24;" id="fluxDiff">—</div>
+      </div>
+    </div>
+
+    <div class="divider">
+      <div class="label" style="color:#38bdf8;">Enclosed Region</div>
+      <div class="result-box">
+        <div class="path-label">Signed area (shoelace / Green's area formula)</div>
+        <div class="path-value" style="color:#38bdf8;" id="areaVal">—</div>
+        <div class="path-label" style="margin-top:6px;">Orientation</div>
+        <div style="font-size:12px;" id="orientVal">—</div>
+        <div class="path-label" style="margin-top:6px;">Closure check</div>
+        <div style="font-size:12px;" id="closureVal">—</div>
+      </div>
+    </div>
+
+    <div class="divider">
+      <div class="label">Display</div>
+      <label><input type="checkbox" id="chkField" checked> Vector field arrows</label>
+      <label><input type="checkbox" id="chkHeatmap" checked> Scalar heatmap (curl or div)</label>
+      <label><input type="checkbox" id="chkInterior" checked> Shade interior region D</label>
+      <label><input type="checkbox" id="chkGrid" checked> Grid &amp; axes</label>
+      <div class="slider-label">Arrow density: <span id="adVal">14</span></div>
+      <input type="range" id="adens" min="6" max="24" value="14">
+      <div class="slider-label">Domain range: ±<span id="rgVal">2</span></div>
+      <input type="range" id="rg" min="1" max="8" value="2" step="0.5">
+
+      <div style="margin-top: 10px;">
+        <div class="colorbar"></div>
+        <div class="colorbar-labels">
+          <span id="cbLeft">− curl (CW)</span><span>0</span><span id="cbRight">+ curl (CCW)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider">
+      <div class="hint">
+        <strong style="color:#a78bfa;">Circulation:</strong> how much F swirls around ∂D.
+        <br>
+        <strong style="color:#34d399;">Flux:</strong> how much F leaks out of D.
+        <br>
+        Green's Theorem says: <em>boundary ≡ interior</em>, for both.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.1/math.min.js"></script>
+<script>
+// ─── State ───
+let Pc = null, Qc = null;
+let xc = null, yc = null;
+let Pfn = null, Qfn = null;
+let rFn = null;
+let tmin = 0, tmax = 2 * Math.PI;
+let polygon = [];              // sampled boundary as array of [x, y]
+let signedArea = 0;            // from shoelace on polygon
+let bbox = { xmin:-1, xmax:1, ymin:-1, ymax:1 };
+
+let mode = "circ";             // "circ" or "flux"
+let showField = true, showHeatmap = true, showInterior = true, showGrid = true;
+let arrowDensity = 14;
+let rangeR = 2;
+
+// Microcurl animation
+let microT = null;             // 0..1 during animation, null when off
+let microAnim = null;
+
+const canvas = document.getElementById("plot");
+const ctx = canvas.getContext("2d");
+const W = canvas.width, H = canvas.height;
+
+// ─── Coordinates ───
+function worldToScreen(x, y) {
+  const sx = (x + rangeR) / (2 * rangeR) * W;
+  const sy = H - (y + rangeR) / (2 * rangeR) * H;
+  return [sx, sy];
+}
+function screenToWorld(sx, sy) {
+  const x = sx / W * (2 * rangeR) - rangeR;
+  const y = (H - sy) / H * (2 * rangeR) - rangeR;
+  return [x, y];
+}
+
+// ─── Parse & compile ───
+function compileAll() {
+  const pE = document.getElementById("pInput").value.trim();
+  const qE = document.getElementById("qInput").value.trim();
+  const xE = document.getElementById("xInput").value.trim();
+  const yE = document.getElementById("yInput").value.trim();
+  const tminE = document.getElementById("tminInput").value.trim();
+  const tmaxE = document.getElementById("tmaxInput").value.trim();
+
+  const errEl = document.getElementById("errMsg");
+  errEl.textContent = "";
+  ["pInput","qInput","xInput","yInput","tminInput","tmaxInput"].forEach(id => {
+    document.getElementById(id).classList.remove("err");
+  });
+
+  let which = "";
+  try {
+    which = "P"; Pc = math.compile(pE); Pc.evaluate({x:0,y:0});
+    which = "Q"; Qc = math.compile(qE); Qc.evaluate({x:0,y:0});
+    which = "x"; xc = math.compile(xE); xc.evaluate({t:0});
+    which = "y"; yc = math.compile(yE); yc.evaluate({t:0});
+    which = "tmin"; tmin = math.evaluate(tminE);
+    which = "tmax"; tmax = math.evaluate(tmaxE);
+    if (!isFinite(tmin) || !isFinite(tmax) || tmax <= tmin) {
+      which = "tmax";
+      throw new Error("bounds must be finite with t_max > t_min");
+    }
+  } catch (e) {
+    errEl.textContent = `Error in ${which}: ${e.message}`;
+    const map = { P:"pInput", Q:"qInput", x:"xInput", y:"yInput",
+                  tmin:"tminInput", tmax:"tmaxInput" };
+    if (map[which]) document.getElementById(map[which]).classList.add("err");
+    return false;
+  }
+
+  Pfn = (x, y) => { const v = Pc.evaluate({x, y}); return isFinite(v) ? v : 0; };
+  Qfn = (x, y) => { const v = Qc.evaluate({x, y}); return isFinite(v) ? v : 0; };
+  rFn = (t) => [xc.evaluate({t}), yc.evaluate({t})];
+
+  document.getElementById("ovField").textContent = `F = ⟨${pE}, ${qE}⟩`;
+
+  // Sample polygon
+  const N = 400;
+  polygon = [];
+  for (let i = 0; i <= N; i++) {
+    const t = tmin + (tmax - tmin) * i / N;
+    polygon.push(rFn(t));
+  }
+  // Shoelace signed area
+  signedArea = 0;
+  for (let i = 0; i < polygon.length - 1; i++) {
+    const [x0, y0] = polygon[i], [x1, y1] = polygon[i+1];
+    signedArea += (x0 * y1 - x1 * y0);
+  }
+  signedArea *= 0.5;
+
+  // Bounding box
+  let xmin=Infinity, xmax=-Infinity, ymin=Infinity, ymax=-Infinity;
+  for (const [x,y] of polygon) {
+    if (x<xmin)xmin=x; if (x>xmax)xmax=x; if (y<ymin)ymin=y; if (y>ymax)ymax=y;
+  }
+  bbox = { xmin, xmax, ymin, ymax };
+
+  return true;
+}
+
+// ─── Numerical partials ───
+function Py(x,y) { const h=1e-5; return (Pfn(x,y+h)-Pfn(x,y-h))/(2*h); }
+function Qx(x,y) { const h=1e-5; return (Qfn(x+h,y)-Qfn(x-h,y))/(2*h); }
+function Px(x,y) { const h=1e-5; return (Pfn(x+h,y)-Pfn(x-h,y))/(2*h); }
+function Qy(x,y) { const h=1e-5; return (Qfn(x,y+h)-Qfn(x,y-h))/(2*h); }
+function curlScalar(x,y) { return Qx(x,y) - Py(x,y); }
+function divScalar(x,y)  { return Px(x,y) + Qy(x,y); }
+
+// ─── Line integrals via midpoint rule on the parameterization ───
+function boundaryIntegrals(N) {
+  const h = (tmax - tmin) / N;
+  const dt = Math.max(1e-6, (tmax - tmin) * 1e-5);
+  let circ = 0, flux = 0;
+  for (let i = 0; i < N; i++) {
+    const tMid = tmin + (i + 0.5) * h;
+    const [x, y] = rFn(tMid);
+    const [xp, yp] = rFn(tMid + dt);
+    const [xm, ym] = rFn(tMid - dt);
+    const dx = (xp - xm) / (2 * dt);
+    const dy = (yp - ym) / (2 * dt);
+    const p = Pfn(x, y), q = Qfn(x, y);
+    circ += (p * dx + q * dy) * h;
+    flux += (p * dy - q * dx) * h;
+  }
+  return { circ, flux };
+}
+
+// ─── Point-in-polygon (ray casting) ───
+function pointInPolygon(x, y) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < (xj - xi) * (y - yi) / ((yj - yi) || 1e-12) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// ─── Double integrals via bounding-box grid ───
+function doubleIntegrals(Nx, Ny) {
+  const { xmin, xmax, ymin, ymax } = bbox;
+  const dx = (xmax - xmin) / Nx;
+  const dy = (ymax - ymin) / Ny;
+  const dA = dx * dy;
+  let sumCurl = 0, sumDiv = 0, cells = 0;
+  for (let i = 0; i < Nx; i++) {
+    for (let j = 0; j < Ny; j++) {
+      const x = xmin + (i + 0.5) * dx;
+      const y = ymin + (j + 0.5) * dy;
+      if (!pointInPolygon(x, y)) continue;
+      sumCurl += curlScalar(x, y);
+      sumDiv  += divScalar(x, y);
+      cells++;
+    }
+  }
+  // Correct for orientation sign: polygon is CCW ⇒ positive area.
+  // Green's gives  ∮ = ∬ over D when boundary is CCW.
+  // If polygon is CW (signedArea < 0), flip sign of double integral so it still matches the given-orientation line integral.
+  const signFlip = signedArea < 0 ? -1 : 1;
+  return { circDouble: signFlip * sumCurl * dA, fluxDouble: signFlip * sumDiv * dA };
+}
+
+// ─── Colormap ───
+function divergingColor(t) {
+  t = Math.max(-1, Math.min(1, t));
+  if (t >= 0) {
+    const r = Math.round(226 - (226 - 59) * t);
+    const g = Math.round(232 - (232 - 130) * t);
+    const b = Math.round(240 - (240 - 246) * t);
+    return `rgb(${r},${g},${b})`;
+  } else {
+    const a = -t;
+    const r = Math.round(226 + (239 - 226) * a);
+    const g = Math.round(232 - (232 - 68) * a);
+    const b = Math.round(240 - (240 - 68) * a);
+    return `rgb(${r},${g},${b})`;
+  }
+}
+
+// ─── Rendering pieces ───
+function drawHeatmap() {
+  if (!showHeatmap) return;
+  const cells = 60;
+  const cw = W / cells, ch = H / cells;
+  const fn = mode === "circ" ? curlScalar : divScalar;
+  let maxAbs = 0;
+  const grid = [];
+  for (let i = 0; i < cells; i++) {
+    grid[i] = [];
+    for (let j = 0; j < cells; j++) {
+      const [x, y] = screenToWorld((i + 0.5) * cw, (j + 0.5) * ch);
+      const c = fn(x, y);
+      grid[i][j] = isFinite(c) ? c : 0;
+      if (Math.abs(grid[i][j]) > maxAbs) maxAbs = Math.abs(grid[i][j]);
+    }
+  }
+  const norm = maxAbs > 1e-9 ? maxAbs : 1;
+  for (let i = 0; i < cells; i++) {
+    for (let j = 0; j < cells; j++) {
+      ctx.fillStyle = divergingColor(grid[i][j] / norm);
+      ctx.fillRect(i * cw, j * ch, cw + 1, ch + 1);
+    }
+  }
+  // Dim overlay
+  ctx.fillStyle = "rgba(11,19,36,0.40)";
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawGrid() {
+  if (!showGrid) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(148,163,184,0.15)";
+  ctx.lineWidth = 1;
+  for (let v = -Math.ceil(rangeR); v <= Math.ceil(rangeR); v++) {
+    const [sx] = worldToScreen(v, 0);
+    const [, sy] = worldToScreen(0, v);
+    ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(W, sy); ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(203,213,225,0.45)";
+  ctx.lineWidth = 1.5;
+  const [ox, oy] = worldToScreen(0, 0);
+  ctx.beginPath(); ctx.moveTo(0, oy); ctx.lineTo(W, oy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox, 0); ctx.lineTo(ox, H); ctx.stroke();
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "10px 'Courier New', monospace";
+  for (let v = -Math.ceil(rangeR); v <= Math.ceil(rangeR); v++) {
+    if (v === 0) continue;
+    const [sx] = worldToScreen(v, 0);
+    const [, sy] = worldToScreen(0, v);
+    ctx.fillText(v, sx + 2, oy - 2);
+    ctx.fillText(v, ox + 2, sy - 2);
+  }
+  ctx.restore();
+}
+
+function drawArrow(sx, sy, dx, dy, color, lw=1.2) {
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy); ctx.lineTo(sx + dx, sy + dy); ctx.stroke();
+  const len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 2) return;
+  const ux = dx/len, uy = dy/len;
+  const hs = Math.min(6, len * 0.4);
+  const px = -uy, py = ux;
+  ctx.beginPath();
+  ctx.moveTo(sx + dx, sy + dy);
+  ctx.lineTo(sx + dx - ux*hs + px*hs*0.5, sy + dy - uy*hs + py*hs*0.5);
+  ctx.lineTo(sx + dx - ux*hs - px*hs*0.5, sy + dy - uy*hs - py*hs*0.5);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawField() {
+  if (!showField) return;
+  const step = (2 * rangeR) / arrowDensity;
+  let maxMag = 0;
+  for (let i = 0; i <= arrowDensity; i++) {
+    for (let j = 0; j <= arrowDensity; j++) {
+      const x = -rangeR + i * step, y = -rangeR + j * step;
+      const m = Math.sqrt(Pfn(x,y)**2 + Qfn(x,y)**2);
+      if (isFinite(m) && m > maxMag) maxMag = m;
+    }
+  }
+  const pixelStep = W / arrowDensity;
+  const scale = maxMag > 1e-9 ? (pixelStep * 0.65) / maxMag : pixelStep * 0.65;
+  for (let i = 0; i <= arrowDensity; i++) {
+    for (let j = 0; j <= arrowDensity; j++) {
+      const x = -rangeR + i * step, y = -rangeR + j * step;
+      const fx = Pfn(x,y), fy = Qfn(x,y);
+      if (!isFinite(fx) || !isFinite(fy)) continue;
+      const [sx, sy] = worldToScreen(x, y);
+      drawArrow(sx, sy, fx * scale, -fy * scale, "rgba(203,213,225,0.65)");
+    }
+  }
+}
+
+function drawInterior() {
+  if (!showInterior || polygon.length < 2) return;
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i < polygon.length; i++) {
+    const [sx, sy] = worldToScreen(polygon[i][0], polygon[i][1]);
+    if (i === 0) ctx.moveTo(sx, sy);
+    else ctx.lineTo(sx, sy);
+  }
+  ctx.closePath();
+  ctx.fillStyle = "rgba(56,189,248,0.10)";
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBoundary() {
+  if (polygon.length < 2) return;
+  ctx.save();
+  ctx.strokeStyle = "#fbbf24";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let i = 0; i < polygon.length; i++) {
+    const [sx, sy] = worldToScreen(polygon[i][0], polygon[i][1]);
+    if (i === 0) ctx.moveTo(sx, sy);
+    else ctx.lineTo(sx, sy);
+  }
+  ctx.stroke();
+  // Direction arrows: three equally spaced arrows along boundary
+  const M = polygon.length;
+  for (const frac of [0.15, 0.45, 0.80]) {
+    const i = Math.floor(frac * (M - 1));
+    const [x0, y0] = polygon[i];
+    const [x1, y1] = polygon[Math.min(M-1, i+5)];
+    const [sx0, sy0] = worldToScreen(x0, y0);
+    const [sx1, sy1] = worldToScreen(x1, y1);
+    drawArrow(sx0, sy0, sx1 - sx0, sy1 - sy0, "#fbbf24", 2);
+  }
+  ctx.restore();
+}
+
+// ─── Microcurl animation: tiny CCW loops inside D with interior-edge cancellation ───
+// t in [0,1]: at 0 show all 4 edges of every tiny loop; at 1 show only edges not shared with neighbors
+function drawMicrocurl() {
+  if (microT === null) return;
+  const cells = 18;
+  const dx = (2 * rangeR) / cells;
+  const occ = [];
+  for (let i = 0; i < cells; i++) {
+    occ[i] = [];
+    for (let j = 0; j < cells; j++) {
+      const cx = -rangeR + (i + 0.5) * dx;
+      const cy = -rangeR + (j + 0.5) * dx;
+      occ[i][j] = pointInPolygon(cx, cy);
+    }
+  }
+  ctx.save();
+  for (let i = 0; i < cells; i++) {
+    for (let j = 0; j < cells; j++) {
+      if (!occ[i][j]) continue;
+      const x0 = -rangeR + i * dx, y0 = -rangeR + j * dx;
+      const x1 = x0 + dx, y1 = y0 + dx;
+      const [sx0, sy0] = worldToScreen(x0, y0);
+      const [sx1, sy1] = worldToScreen(x1, y1);
+      // 4 edges: bottom, right, top, left
+      //   shared-with-neighbor flags
+      const sharedBottom = j > 0      && occ[i][j-1];
+      const sharedRight  = i < cells-1 && occ[i+1][j];
+      const sharedTop    = j < cells-1 && occ[i][j+1];
+      const sharedLeft   = i > 0      && occ[i-1][j];
+      const edges = [
+        { sx: sx0, sy: sy0, ex: sx1, ey: sy0, shared: sharedBottom },
+        { sx: sx1, sy: sy0, ex: sx1, ey: sy1, shared: sharedRight  },
+        { sx: sx1, sy: sy1, ex: sx0, ey: sy1, shared: sharedTop    },
+        { sx: sx0, sy: sy1, ex: sx0, ey: sy0, shared: sharedLeft   }
+      ];
+      for (const e of edges) {
+        // interior edges fade out with microT; boundary edges stay
+        const alpha = e.shared ? (1 - microT) * 0.7 : 0.95;
+        if (alpha <= 0.02) continue;
+        ctx.strokeStyle = `rgba(167,139,250,${alpha})`;
+        ctx.lineWidth = e.shared ? 1 : 2;
+        ctx.beginPath();
+        ctx.moveTo(e.sx, e.sy); ctx.lineTo(e.ex, e.ey); ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function redraw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#0b1324";
+  ctx.fillRect(0, 0, W, H);
+  drawHeatmap();
+  drawGrid();
+  drawField();
+  drawInterior();
+  drawMicrocurl();
+  drawBoundary();
+}
+
+// ─── Apply & compute ───
+function apply() {
+  if (!compileAll()) return;
+  redraw();
+
+  const { circ, flux } = boundaryIntegrals(800);
+  const { circDouble, fluxDouble } = doubleIntegrals(140, 140);
+
+  document.getElementById("circLine").textContent   = circ.toFixed(2);
+  document.getElementById("circDouble").textContent = circDouble.toFixed(2);
+  document.getElementById("fluxLine").textContent   = flux.toFixed(2);
+  document.getElementById("fluxDouble").textContent = fluxDouble.toFixed(2);
+
+  const cd = Math.abs(circ - circDouble);
+  const fd = Math.abs(flux - fluxDouble);
+  document.getElementById("circDiff").textContent = cd.toFixed(2);
+  document.getElementById("fluxDiff").textContent = fd.toFixed(2);
+  const scaleCirc = Math.max(Math.abs(circ), Math.abs(circDouble), 1);
+  const scaleFlux = Math.max(Math.abs(flux), Math.abs(fluxDouble), 1);
+  const circOK = cd / scaleCirc < 0.02;
+  const fluxOK = fd / scaleFlux < 0.02;
+  const cMatch = document.getElementById("circMatch");
+  const fMatch = document.getElementById("fluxMatch");
+  cMatch.className = "match-pill " + (circOK ? "ok" : "bad");
+  cMatch.textContent = circOK ? "Green's ✓" : "diverge";
+  fMatch.className = "match-pill " + (fluxOK ? "ok" : "bad");
+  fMatch.textContent = fluxOK ? "Green's ✓" : "diverge";
+
+  document.getElementById("areaVal").textContent = signedArea.toFixed(2);
+  document.getElementById("orientVal").textContent =
+    Math.abs(signedArea) < 1e-6
+      ? "degenerate (zero area)"
+      : (signedArea > 0 ? "CCW (positive)" : "CW (negative — sign flipped for Green's)");
+
+  const rStart = rFn(tmin), rEnd = rFn(tmax);
+  const gap = Math.hypot(rEnd[0]-rStart[0], rEnd[1]-rStart[1]);
+  const scale = Math.max(Math.abs(bbox.xmax-bbox.xmin), Math.abs(bbox.ymax-bbox.ymin), 1);
+  const closed = gap / scale < 1e-3;
+  document.getElementById("closureVal").innerHTML = closed
+    ? `<span style="color:#4ade80;">closed ✓ (gap ≈ ${gap.toExponential(1)})</span>`
+    : `<span style="color:#f87171;">NOT CLOSED (gap = ${gap.toFixed(2)}) — Green's does not apply</span>`;
+}
+
+// ─── Hover probe ───
+canvas.addEventListener("mousemove", e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = (e.clientX - rect.left) * (W / rect.width);
+  const sy = (e.clientY - rect.top)  * (H / rect.height);
+  const [x, y] = screenToWorld(sx, sy);
+  if (!Pfn) return;
+  const fx = Pfn(x,y), fy = Qfn(x,y);
+  const c = curlScalar(x, y), d = divScalar(x, y);
+  document.getElementById("ovProbe").textContent =
+    `at (${x.toFixed(2)}, ${y.toFixed(2)}): F = ⟨${fx.toFixed(2)}, ${fy.toFixed(2)}⟩, curl=${c.toFixed(2)}, div=${d.toFixed(2)}`;
+});
+
+// ─── Mode toggle ───
+function setMode(m) {
+  mode = m;
+  document.getElementById("modeCirc").classList.toggle("active", m === "circ");
+  document.getElementById("modeFlux").classList.toggle("active", m === "flux");
+  document.getElementById("cbLeft").textContent  = m === "circ" ? "− curl (CW)" : "− div (sink)";
+  document.getElementById("cbRight").textContent = m === "circ" ? "+ curl (CCW)" : "+ div (source)";
+  redraw();
+}
+document.getElementById("modeCirc").onclick = () => setMode("circ");
+document.getElementById("modeFlux").onclick = () => setMode("flux");
+
+// ─── Microcurl button ───
+document.getElementById("microBtn").onclick = () => {
+  if (microAnim) {
+    cancelAnimationFrame(microAnim);
+    microAnim = null; microT = null;
+    document.getElementById("microBtn").textContent = "▶ Microcurl";
+    redraw(); return;
+  }
+  microT = 0;
+  document.getElementById("microBtn").textContent = "⏸ Stop";
+  const dur = 2800;
+  const start = performance.now();
+  function step() {
+    const now = performance.now();
+    microT = Math.min(1, (now - start) / dur);
+    redraw();
+    if (microT < 1) microAnim = requestAnimationFrame(step);
+    else {
+      // hold at 1 for a moment then fade back
+      setTimeout(() => {
+        microT = null; microAnim = null;
+        document.getElementById("microBtn").textContent = "▶ Microcurl";
+        redraw();
+      }, 1800);
+    }
+  }
+  step();
+};
+
+// ─── Controls ───
+document.getElementById("applyBtn").onclick = apply;
+["pInput","qInput","xInput","yInput","tminInput","tmaxInput"].forEach(id => {
+  document.getElementById(id).addEventListener("keydown", e => {
+    if (e.key === "Enter") apply();
+  });
+});
+document.getElementById("chkField").onchange    = e => { showField = e.target.checked; redraw(); };
+document.getElementById("chkHeatmap").onchange  = e => { showHeatmap = e.target.checked; redraw(); };
+document.getElementById("chkInterior").onchange = e => { showInterior = e.target.checked; redraw(); };
+document.getElementById("chkGrid").onchange     = e => { showGrid = e.target.checked; redraw(); };
+document.getElementById("adens").oninput = e => {
+  arrowDensity = +e.target.value;
+  document.getElementById("adVal").textContent = arrowDensity;
+  redraw();
+};
+document.getElementById("rg").oninput = e => {
+  rangeR = +e.target.value;
+  document.getElementById("rgVal").textContent = rangeR;
+  redraw();
+};
+document.getElementById("resetAllBtn").onclick = (e) => {
+  e.preventDefault();
+  document.getElementById("pInput").value = "-y";
+  document.getElementById("qInput").value = "x";
+  document.getElementById("xInput").value = "cos(t)";
+  document.getElementById("yInput").value = "sin(t)";
+  document.getElementById("tminInput").value = "0";
+  document.getElementById("tmaxInput").value = "2*pi";
+  setMode("circ");
+  apply();
+};
+
+// ─── Init ───
+apply();
+</script>
+</body>
+</html>

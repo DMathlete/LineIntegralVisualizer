@@ -754,11 +754,11 @@ function rebuildContent() {
   }
 
   // Overlay text
-  const signSpan = result.total >= 0 ? `<span class="sign-positive">${result.total.toFixed(4)}</span>` : `<span class="sign-negative">${result.total.toFixed(4)}</span>`;
+  const signSpan = result.total >= 0 ? `<span class="sign-positive">${result.total.toFixed(2)}</span>` : `<span class="sign-negative">${result.total.toFixed(2)}</span>`;
   document.getElementById("ovCurve").textContent = `r(t) = ⟨${lastInputs.x}, ${lastInputs.y}, ${lastInputs.z}⟩,  t ∈ [${lastInputs.tmin}, ${lastInputs.tmax}]`;
   document.getElementById("ovField").textContent = `F = ⟨${lastInputs.p}, ${lastInputs.q}, ${lastInputs.r}⟩`;
-  document.getElementById("ovWork").innerHTML = `Work ≈ ${result.total.toFixed(4)}  (n = ${n})`;
-  document.getElementById("intVal").textContent = result.total.toFixed(4);
+  document.getElementById("ovWork").innerHTML = `Work ≈ ${result.total.toFixed(2)}  (n = ${n})`;
+  document.getElementById("intVal").textContent = result.total.toFixed(2);
 
   // Exact match lookup
   const key = `${lastInputs.x}|${lastInputs.y}|${lastInputs.z}|${lastInputs.tmin}|${lastInputs.tmax}|${lastInputs.p}|${lastInputs.q}|${lastInputs.r}`;

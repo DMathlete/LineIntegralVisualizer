@@ -552,9 +552,9 @@ function apply() {
   const I1 = lineIntegral(r1, t1min, t1max, 400);
   const I2 = lineIntegral(r2, t2min, t2max, 400);
   const diff = Math.abs(I1 - I2);
-  document.getElementById("int1Val").textContent = I1.toFixed(4);
-  document.getElementById("int2Val").textContent = I2.toFixed(4);
-  document.getElementById("diffVal").textContent = diff.toFixed(4);
+  document.getElementById("int1Val").textContent = I1.toFixed(2);
+  document.getElementById("int2Val").textContent = I2.toFixed(2);
+  document.getElementById("diffVal").textContent = diff.toFixed(2);
 
   // Conservative verdict
   const { maxAbsCurl, conservative } = isConservativeNumeric();
@@ -564,7 +564,7 @@ function apply() {
     verdictEl.innerHTML = `✓ Conservative (max |curl| ≈ ${maxAbsCurl.toExponential(2)})<br><span style="font-weight:400; font-size:12px;">∫<sub>C</sub> F·dr is path-independent — FTLI applies.</span>`;
   } else {
     verdictEl.className = "verdict nonconservative";
-    verdictEl.innerHTML = `✗ Not conservative (max |curl| ≈ ${maxAbsCurl.toFixed(3)})<br><span style="font-weight:400; font-size:12px;">Path matters. No single potential exists.</span>`;
+    verdictEl.innerHTML = `✗ Not conservative (max |curl| ≈ ${maxAbsCurl.toFixed(2)})<br><span style="font-weight:400; font-size:12px;">Path matters. No single potential exists.</span>`;
   }
 
   // Potential (only meaningful if conservative)
@@ -574,7 +574,7 @@ function apply() {
     const fA = potentialAt(A[0], A[1]);
     const fB = potentialAt(B[0], B[1]);
     document.getElementById("potentialText").innerHTML =
-      `f(A) ≈ ${fA.toFixed(4)}<br>f(B) ≈ ${fB.toFixed(4)}<br><span style="color:#fbbf24;">f(B) − f(A) ≈ ${(fB-fA).toFixed(4)}</span>` +
+      `f(A) ≈ ${fA.toFixed(2)}<br>f(B) ≈ ${fB.toFixed(2)}<br><span style="color:#fbbf24;">f(B) − f(A) ≈ ${(fB-fA).toFixed(2)}</span>` +
       `<br><span style="font-size:11px; color:#94a3b8;">Matches ∫<sub>C</sub> F·dr above — FTLI in action.</span>`;
     potBox.style.display = "block";
   } else {
@@ -592,7 +592,7 @@ canvas.addEventListener("mousemove", e => {
   const fx = Pfn(x, y), fy = Qfn(x, y);
   const c = scalarCurl(x, y);
   document.getElementById("ovCurl").textContent =
-    `at (${x.toFixed(2)}, ${y.toFixed(2)}): F = ⟨${fx.toFixed(3)}, ${fy.toFixed(3)}⟩, curl = ${c.toFixed(3)}`;
+    `at (${x.toFixed(2)}, ${y.toFixed(2)}): F = ⟨${fx.toFixed(2)}, ${fy.toFixed(2)}⟩, curl = ${c.toFixed(2)}`;
 });
 
 // ─── Controls ───

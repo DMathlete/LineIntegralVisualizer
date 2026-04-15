@@ -603,7 +603,7 @@ function rebuildContent() {
 
   // HUD
   const sweepTxt = sweepT !== null && sweepT < 1 ? ` (sweep ${(sweepT*100).toFixed(0)}%)` : '';
-  document.getElementById("intVal").textContent = result.total.toFixed(4) + sweepTxt;
+  document.getElementById("intVal").textContent = result.total.toFixed(2) + sweepTxt;
   const exactKey = `${lastInputs.x}|${lastInputs.y}|${lastInputs.z}|${lastInputs.tmin}|${lastInputs.tmax}|${lastInputs.f}`;
   document.getElementById("exactNote").textContent = EXACT[exactKey] || "";
   document.getElementById("subtitle").textContent = activeCurve.tex + "   •   " + activeField.label;
@@ -611,7 +611,7 @@ function rebuildContent() {
   document.getElementById("ovField").textContent = activeField.label;
   try {
     const arcLen = computeIntegralAndSamples(activeCurve, { fn: () => 1 }, n).total;
-    document.getElementById("ovArc").textContent = `n = ${n}  •  arc length ≈ ${arcLen.toFixed(4)}`;
+    document.getElementById("ovArc").textContent = `n = ${n}  •  arc length ≈ ${arcLen.toFixed(2)}`;
   } catch (e) { /* silent */ }
 }
 

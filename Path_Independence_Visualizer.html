@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 52: Path Independence & Curl Visualizer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 18px; min-height: 100vh; }
+  h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  #subtitle { color: #fbbf24; font-size: 13px; font-style: italic; margin-bottom: 6px; text-align: center; max-width: 960px; }
+  #formula { color: #cbd5e1; font-size: 15px; margin-bottom: 10px; text-align: center; }
+  #nav-links { font-size: 12px; color: #64748b; margin-bottom: 10px; }
+  #nav-links a { color: #38bdf8; text-decoration: none; margin: 0 6px; }
+  #nav-links a:hover { text-decoration: underline; }
+  #main { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  #canvasWrap { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid #334155; background: #0b1324; }
+  #canvasWrap canvas { display: block; }
+  #overlay { position: absolute; top: 10px; left: 10px; font: 12px "Courier New", monospace; color: #e2e8f0; pointer-events: none; background: rgba(11,19,36,0.75); padding: 6px 10px; border-radius: 4px; max-width: 420px; }
+  #hint { position: absolute; bottom: 10px; left: 10px; font-size: 11px; color: #64748b; pointer-events: none; background: rgba(11,19,36,0.6); padding: 3px 6px; border-radius: 3px; }
+  .panel { background: #1e293b; border-radius: 8px; border: 1px solid #334155; padding: 14px; width: 320px; max-height: 880px; overflow-y: auto; }
+  .label { color: #fbbf24; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .divider { border-top: 1px solid #334155; margin: 12px 0; padding-top: 12px; }
+  label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-bottom: 6px; }
+  .slider-label { font-size: 12px; margin-bottom: 4px; margin-top: 6px; }
+  input[type="range"] { width: 100%; accent-color: #fbbf24; }
+  input[type="text"] {
+    background: #0b1324; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px;
+    padding: 5px 8px; font-family: "Courier New", monospace; font-size: 13px; width: 100%;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus { outline: none; border-color: #fbbf24; }
+  input[type="text"].err { border-color: #ef4444; }
+  .input-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .input-row .lbl { font-family: "Courier New", monospace; font-size: 12px; color: #94a3b8; min-width: 42px; text-align: right; }
+  .pair-row { display: flex; align-items: center; gap: 4px; margin-bottom: 5px; }
+  .pair-row .lbl { font-family: "Courier New", monospace; font-size: 12px; color: #94a3b8; min-width: 38px; text-align: right; }
+  .pair-row input[type="text"] { flex: 1; }
+  .result-box { background: #0b1324; border-radius: 8px; padding: 10px; margin-top: 8px; font-family: "Courier New", monospace; }
+  .result-box .path-label { font-size: 11px; margin-bottom: 2px; }
+  .result-box .path-value { font-size: 16px; font-weight: 700; }
+  .verdict { padding: 10px; border-radius: 8px; margin-top: 8px; text-align: center; font-weight: 600; font-size: 13px; }
+  .verdict.conservative { background: rgba(74,222,128,0.12); border: 2px solid #4ade80; color: #4ade80; }
+  .verdict.nonconservative { background: rgba(248,113,113,0.12); border: 2px solid #f87171; color: #f87171; }
+  .hint { font-size: 11px; line-height: 1.5; color: #94a3b8; }
+  .err-msg { color: #f87171; font-size: 11px; margin-top: 6px; min-height: 14px; font-family: "Courier New", monospace; }
+  .btn-row { display: flex; gap: 6px; }
+  .action-btn { flex: 1; padding: 7px; border-radius: 6px; border: 1px solid #fbbf24; background: rgba(251,191,36,0.15); color: #fbbf24; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+  .action-btn:hover { background: rgba(251,191,36,0.3); }
+  .secondary-btn { flex: 1; padding: 7px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+  .secondary-btn:hover { border-color: #38bdf8; color: #38bdf8; }
+  .syntax-help { font-size: 10px; color: #64748b; font-family: "Courier New", monospace; margin-top: 4px; line-height: 1.4; }
+  .path1-color { color: #38bdf8; }
+  .path2-color { color: #fb923c; }
+  .colorbar { height: 10px; border-radius: 3px; margin-top: 4px;
+    background: linear-gradient(to right, #ef4444 0%, #fecaca 25%, #e2e8f0 50%, #bae6fd 75%, #3b82f6 100%); }
+  .colorbar-labels { display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; font-family: "Courier New", monospace; margin-top: 2px; }
+</style>
+</head>
+<body>
+<h1>Lesson 52: Path Independence &amp; Curl Test</h1>
+<p id="subtitle">Does the path matter? Two endpoints, two paths, one field — and the curl that decides.</p>
+<div id="formula">
+  Path integral: &nbsp; <span style="font-family:'Times New Roman', serif; font-style:italic;">
+    &int;<sub>C</sub> <b>F</b>&middot;d<b>r</b>
+  </span>
+  &nbsp;vs.&nbsp; FTLI: &nbsp; <span style="font-family:'Times New Roman', serif; font-style:italic;">
+    f(B) &minus; f(A)
+  </span>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  2D curl: &nbsp; <span style="font-family:'Times New Roman', serif; font-style:italic;">
+    &part;Q/&part;x &minus; &part;P/&part;y
+  </span>
+</div>
+<div id="nav-links">
+  <a href="index.html">← Calculus Tools</a>
+  <span style="color:#334155;">|</span>
+  <a href="Line_Integral_Visualizer.html">Scalar Line Integral</a>
+  <span style="color:#334155;">|</span>
+  <a href="Vector_Line_Integral_Visualizer.html">Vector Line Integral</a>
+  <span style="color:#334155;">|</span>
+  <a href="#" id="resetAllBtn">Reset to defaults</a>
+</div>
+
+<div id="main">
+  <div id="canvasWrap">
+    <canvas id="plot" width="720" height="720"></canvas>
+    <div id="overlay">
+      <div id="ovField"></div>
+      <div id="ovCurl" style="color:#a78bfa; margin-top:3px;"></div>
+    </div>
+    <div id="hint">Hover the plot to probe F and curl at a point</div>
+  </div>
+
+  <div class="panel">
+    <div class="btn-row" style="margin-bottom: 12px;">
+      <button class="action-btn" id="applyBtn">Apply (↵)</button>
+      <button class="secondary-btn" id="resetViewBtn">⟲ View</button>
+    </div>
+
+    <div class="label">Vector Field F = ⟨P, Q⟩</div>
+    <div class="input-row">
+      <span class="lbl">P =</span>
+      <input type="text" id="pInput" value="2*x*y + 3">
+    </div>
+    <div class="input-row">
+      <span class="lbl">Q =</span>
+      <input type="text" id="qInput" value="x^2 - 4*y">
+    </div>
+
+    <div class="divider">
+      <div class="label path1-color">Path 1: r₁(t)</div>
+      <div class="pair-row">
+        <span class="lbl">x₁(t) =</span>
+        <input type="text" id="x1Input" value="1 + 2*t">
+      </div>
+      <div class="pair-row">
+        <span class="lbl">y₁(t) =</span>
+        <input type="text" id="y1Input" value="2 - 3*t">
+      </div>
+      <div class="pair-row">
+        <span class="lbl">t ∈ [</span>
+        <input type="text" id="t1minInput" value="0" style="max-width:80px;">
+        <span class="lbl" style="min-width:10px;">,</span>
+        <input type="text" id="t1maxInput" value="1" style="max-width:80px;">
+        <span class="lbl" style="min-width:10px; text-align:left;">]</span>
+      </div>
+    </div>
+
+    <div class="divider">
+      <div class="label path2-color">Path 2: r₂(t)</div>
+      <div class="pair-row">
+        <span class="lbl">x₂(t) =</span>
+        <input type="text" id="x2Input" value="1 + 2*t">
+      </div>
+      <div class="pair-row">
+        <span class="lbl">y₂(t) =</span>
+        <input type="text" id="y2Input" value="2 - 3*t^3">
+      </div>
+      <div class="pair-row">
+        <span class="lbl">t ∈ [</span>
+        <input type="text" id="t2minInput" value="0" style="max-width:80px;">
+        <span class="lbl" style="min-width:10px;">,</span>
+        <input type="text" id="t2maxInput" value="1" style="max-width:80px;">
+        <span class="lbl" style="min-width:10px; text-align:left;">]</span>
+      </div>
+      <div class="syntax-help" style="margin-top: 6px;">
+        Paths should share start &amp; end points. Bounds accept expressions: <code>pi</code>, <code>pi/2</code>, <code>2*pi</code>, <code>sqrt(2)</code>, etc.
+      </div>
+    </div>
+
+    <div class="err-msg" id="errMsg"></div>
+
+    <div class="divider">
+      <div class="label">Results</div>
+      <div class="result-box">
+        <div class="path-label path1-color">∫<sub>C₁</sub> F·dr ≈</div>
+        <div class="path-value path1-color" id="int1Val">—</div>
+        <div class="path-label path2-color" style="margin-top:8px;">∫<sub>C₂</sub> F·dr ≈</div>
+        <div class="path-value path2-color" id="int2Val">—</div>
+        <div class="path-label" style="margin-top:8px; color:#fbbf24;">Difference |C₁ − C₂| =</div>
+        <div class="path-value" style="color:#fbbf24;" id="diffVal">—</div>
+      </div>
+      <div class="verdict" id="verdict">—</div>
+      <div class="result-box" id="potentialBox" style="display:none;">
+        <div class="path-label" style="color:#a78bfa;">Recovered potential (numeric, f(0,0)=0):</div>
+        <div style="font-size:13px; color:#e2e8f0;" id="potentialText"></div>
+      </div>
+    </div>
+
+    <div class="divider">
+      <div class="label">Display</div>
+      <label><input type="checkbox" id="chkField" checked> Vector field arrows</label>
+      <label><input type="checkbox" id="chkCurl" checked> Curl heatmap (background)</label>
+      <label><input type="checkbox" id="chkPaths" checked> Show paths &amp; endpoints</label>
+      <label><input type="checkbox" id="chkGrid" checked> Grid &amp; axes</label>
+      <div class="slider-label">Arrow density: <span id="adVal">14</span></div>
+      <input type="range" id="adens" min="6" max="24" value="14">
+      <div class="slider-label">Domain range: ±<span id="rgVal">4</span></div>
+      <input type="range" id="rg" min="2" max="10" value="4">
+
+      <div style="margin-top: 10px;">
+        <div class="colorbar"></div>
+        <div class="colorbar-labels">
+          <span>− (clockwise)</span><span>0</span><span>+ (counter-cw)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider">
+      <div class="hint">
+        <strong style="color:#4ade80;">Conservative</strong> = curl ≡ 0 ⇒ both integrals match ⇒ FTLI applies.
+        <br>
+        <strong style="color:#f87171;">Non-conservative</strong> = curl ≠ 0 somewhere ⇒ paths generally disagree.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.1/math.min.js"></script>
+<script>
+// ─── State ───
+let Pc = null, Qc = null;        // compiled P, Q
+let x1c = null, y1c = null;      // compiled path 1
+let x2c = null, y2c = null;      // compiled path 2
+let Pfn = null, Qfn = null;
+let r1 = null, r2 = null;
+let t1min = 0, t1max = 1, t2min = 0, t2max = 1;
+
+let showField = true, showCurl = true, showPaths = true, showGrid = true;
+let arrowDensity = 14;
+let rangeR = 4;                  // domain [-R, R] x [-R, R]
+
+const canvas = document.getElementById("plot");
+const ctx = canvas.getContext("2d");
+const W = canvas.width, H = canvas.height;
+
+// ─── Coordinate mapping ───
+function worldToScreen(x, y) {
+  const sx = (x + rangeR) / (2 * rangeR) * W;
+  const sy = H - (y + rangeR) / (2 * rangeR) * H;
+  return [sx, sy];
+}
+function screenToWorld(sx, sy) {
+  const x = sx / W * (2 * rangeR) - rangeR;
+  const y = (H - sy) / H * (2 * rangeR) - rangeR;
+  return [x, y];
+}
+
+// ─── Compilation ───
+function compileAll() {
+  const pE = document.getElementById("pInput").value.trim();
+  const qE = document.getElementById("qInput").value.trim();
+  const x1E = document.getElementById("x1Input").value.trim();
+  const y1E = document.getElementById("y1Input").value.trim();
+  const x2E = document.getElementById("x2Input").value.trim();
+  const y2E = document.getElementById("y2Input").value.trim();
+  const t1minE = document.getElementById("t1minInput").value.trim();
+  const t1maxE = document.getElementById("t1maxInput").value.trim();
+  const t2minE = document.getElementById("t2minInput").value.trim();
+  const t2maxE = document.getElementById("t2maxInput").value.trim();
+
+  const errEl = document.getElementById("errMsg");
+  errEl.textContent = "";
+  ["pInput","qInput","x1Input","y1Input","x2Input","y2Input",
+   "t1minInput","t1maxInput","t2minInput","t2maxInput"].forEach(id => {
+    document.getElementById(id).classList.remove("err");
+  });
+
+  let which = "";
+  try {
+    which = "P";  Pc = math.compile(pE);  Pc.evaluate({x:0,y:0});
+    which = "Q";  Qc = math.compile(qE);  Qc.evaluate({x:0,y:0});
+    which = "x1"; x1c = math.compile(x1E); x1c.evaluate({t:0});
+    which = "y1"; y1c = math.compile(y1E); y1c.evaluate({t:0});
+    which = "x2"; x2c = math.compile(x2E); x2c.evaluate({t:0});
+    which = "y2"; y2c = math.compile(y2E); y2c.evaluate({t:0});
+    which = "t1min"; t1min = math.evaluate(t1minE);
+    which = "t1max"; t1max = math.evaluate(t1maxE);
+    which = "t2min"; t2min = math.evaluate(t2minE);
+    which = "t2max"; t2max = math.evaluate(t2maxE);
+    if (!isFinite(t1min) || !isFinite(t1max) || t1max <= t1min) {
+      which = "t1max";
+      throw new Error("Path 1 bounds must be finite with t_max > t_min");
+    }
+    if (!isFinite(t2min) || !isFinite(t2max) || t2max <= t2min) {
+      which = "t2max";
+      throw new Error("Path 2 bounds must be finite with t_max > t_min");
+    }
+  } catch (e) {
+    errEl.textContent = `Error in ${which}: ${e.message}`;
+    const map = { P: "pInput", Q: "qInput", x1: "x1Input", y1: "y1Input", x2: "x2Input", y2: "y2Input",
+                  t1min: "t1minInput", t1max: "t1maxInput", t2min: "t2minInput", t2max: "t2maxInput" };
+    if (map[which]) document.getElementById(map[which]).classList.add("err");
+    return false;
+  }
+
+  Pfn = (x, y) => { const v = Pc.evaluate({x, y}); return isFinite(v) ? v : 0; };
+  Qfn = (x, y) => { const v = Qc.evaluate({x, y}); return isFinite(v) ? v : 0; };
+  r1 = (t) => [x1c.evaluate({t}), y1c.evaluate({t})];
+  r2 = (t) => [x2c.evaluate({t}), y2c.evaluate({t})];
+
+  // Show field label
+  document.getElementById("ovField").textContent = `F = ⟨${pE}, ${qE}⟩`;
+
+  return true;
+}
+
+// ─── Numerical derivatives ───
+function partialPy(x, y) {
+  const h = 1e-5;
+  return (Pfn(x, y + h) - Pfn(x, y - h)) / (2 * h);
+}
+function partialQx(x, y) {
+  const h = 1e-5;
+  return (Qfn(x + h, y) - Qfn(x - h, y)) / (2 * h);
+}
+function scalarCurl(x, y) {
+  return partialQx(x, y) - partialPy(x, y);
+}
+
+// ─── Line integral via midpoint rule over [tMin, tMax] ───
+function lineIntegral(rFn, tMin, tMax, N) {
+  const span = tMax - tMin;
+  const h = span / N;
+  const dt = Math.max(1e-6, span * 1e-5);
+  let sum = 0;
+  for (let i = 0; i < N; i++) {
+    const tMid = tMin + (i + 0.5) * h;
+    const [x, y] = rFn(tMid);
+    const [xp, yp] = rFn(tMid + dt);
+    const [xm, ym] = rFn(tMid - dt);
+    const dx = (xp - xm) / (2 * dt);
+    const dy = (yp - ym) / (2 * dt);
+    const F = [Pfn(x, y), Qfn(x, y)];
+    sum += (F[0] * dx + F[1] * dy) * h;
+  }
+  return sum;
+}
+
+// ─── Conservativeness test (numeric sample of scalar curl) ───
+function isConservativeNumeric() {
+  const samples = 15;
+  let maxAbsCurl = 0;
+  let sumAbsCurl = 0;
+  let count = 0;
+  for (let i = 0; i <= samples; i++) {
+    for (let j = 0; j <= samples; j++) {
+      const x = -rangeR + (2 * rangeR) * i / samples;
+      const y = -rangeR + (2 * rangeR) * j / samples;
+      const c = scalarCurl(x, y);
+      if (!isFinite(c)) continue;
+      const a = Math.abs(c);
+      if (a > maxAbsCurl) maxAbsCurl = a;
+      sumAbsCurl += a;
+      count++;
+    }
+  }
+  const mean = count > 0 ? sumAbsCurl / count : 0;
+  // Relative tolerance: conservative iff max|curl| is small vs. field magnitude
+  return { maxAbsCurl, mean, conservative: maxAbsCurl < 1e-4 };
+}
+
+// ─── Potential function (numeric, assuming conservative) ───
+// f(x,y) = line integral of F along straight line from (0,0) to (x,y)
+function potentialAt(x, y) {
+  const N = 80;
+  const h = 1 / N;
+  let sum = 0;
+  for (let i = 0; i < N; i++) {
+    const s = (i + 0.5) * h;
+    const Fx = Pfn(s * x, s * y);
+    const Fy = Qfn(s * x, s * y);
+    sum += (Fx * x + Fy * y) * h;
+  }
+  return sum;
+}
+
+// ─── Rendering ───
+function divergingColor(t) {
+  // t in [-1, 1]: -1 = red (CW), 0 = white, +1 = blue (CCW)
+  t = Math.max(-1, Math.min(1, t));
+  if (t >= 0) {
+    // white → blue
+    const r = Math.round(226 - (226 - 59) * t);
+    const g = Math.round(232 - (232 - 130) * t);
+    const b = Math.round(240 - (240 - 246) * t);  // to #3b82f6
+    return `rgb(${r},${g},${b})`;
+  } else {
+    const a = -t;
+    const r = Math.round(226 + (239 - 226) * a);  // to #ef4444
+    const g = Math.round(232 - (232 - 68) * a);
+    const b = Math.round(240 - (240 - 68) * a);
+    return `rgb(${r},${g},${b})`;
+  }
+}
+
+function drawCurlHeatmap() {
+  if (!showCurl) return;
+  // Sample on a medium grid; draw as colored rectangles
+  const cells = 60;
+  const cw = W / cells, ch = H / cells;
+  // First pass: find max abs curl for normalization
+  let maxAbs = 0;
+  const grid = [];
+  for (let i = 0; i < cells; i++) {
+    grid[i] = [];
+    for (let j = 0; j < cells; j++) {
+      const sx = (i + 0.5) * cw;
+      const sy = (j + 0.5) * ch;
+      const [x, y] = screenToWorld(sx, sy);
+      const c = scalarCurl(x, y);
+      grid[i][j] = isFinite(c) ? c : 0;
+      if (isFinite(c) && Math.abs(c) > maxAbs) maxAbs = Math.abs(c);
+    }
+  }
+  const norm = maxAbs > 1e-9 ? maxAbs : 1;
+  for (let i = 0; i < cells; i++) {
+    for (let j = 0; j < cells; j++) {
+      ctx.fillStyle = divergingColor(grid[i][j] / norm);
+      ctx.fillRect(i * cw, j * ch, cw + 1, ch + 1);
+    }
+  }
+  // Dim overall so paths/arrows read
+  ctx.fillStyle = "rgba(11,19,36,0.40)";
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawGrid() {
+  if (!showGrid) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(148,163,184,0.15)";
+  ctx.lineWidth = 1;
+  const step = 1;
+  for (let v = -Math.ceil(rangeR); v <= Math.ceil(rangeR); v += step) {
+    const [sx1] = worldToScreen(v, -rangeR);
+    const [, sy1] = worldToScreen(-rangeR, v);
+    ctx.beginPath(); ctx.moveTo(sx1, 0); ctx.lineTo(sx1, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, sy1); ctx.lineTo(W, sy1); ctx.stroke();
+  }
+  // Axes
+  ctx.strokeStyle = "rgba(203,213,225,0.45)";
+  ctx.lineWidth = 1.5;
+  const [ox, oy] = worldToScreen(0, 0);
+  ctx.beginPath(); ctx.moveTo(0, oy); ctx.lineTo(W, oy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox, 0); ctx.lineTo(ox, H); ctx.stroke();
+  // Tick labels
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "10px 'Courier New', monospace";
+  for (let v = -Math.ceil(rangeR); v <= Math.ceil(rangeR); v++) {
+    if (v === 0) continue;
+    const [sx] = worldToScreen(v, 0);
+    const [, sy] = worldToScreen(0, v);
+    ctx.fillText(v, sx + 2, oy - 2);
+    ctx.fillText(v, ox + 2, sy - 2);
+  }
+  ctx.restore();
+}
+
+function drawArrow(sx, sy, dx, dy, color) {
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(sx + dx, sy + dy);
+  ctx.stroke();
+  // arrowhead
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 2) return;
+  const ux = dx / len, uy = dy / len;
+  const hs = Math.min(6, len * 0.4);
+  const px = -uy, py = ux;
+  ctx.beginPath();
+  ctx.moveTo(sx + dx, sy + dy);
+  ctx.lineTo(sx + dx - ux * hs + px * hs * 0.5, sy + dy - uy * hs + py * hs * 0.5);
+  ctx.lineTo(sx + dx - ux * hs - px * hs * 0.5, sy + dy - uy * hs - py * hs * 0.5);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawField() {
+  if (!showField) return;
+  const step = (2 * rangeR) / arrowDensity;
+  // First find max magnitude for scaling
+  let maxMag = 0;
+  for (let i = 0; i <= arrowDensity; i++) {
+    for (let j = 0; j <= arrowDensity; j++) {
+      const x = -rangeR + i * step;
+      const y = -rangeR + j * step;
+      const m = Math.sqrt(Pfn(x, y) ** 2 + Qfn(x, y) ** 2);
+      if (isFinite(m) && m > maxMag) maxMag = m;
+    }
+  }
+  const pixelStep = W / arrowDensity;
+  const targetLen = pixelStep * 0.7;
+  const scale = maxMag > 1e-9 ? targetLen / maxMag : targetLen;
+
+  for (let i = 0; i <= arrowDensity; i++) {
+    for (let j = 0; j <= arrowDensity; j++) {
+      const x = -rangeR + i * step;
+      const y = -rangeR + j * step;
+      const fx = Pfn(x, y), fy = Qfn(x, y);
+      if (!isFinite(fx) || !isFinite(fy)) continue;
+      const [sx, sy] = worldToScreen(x, y);
+      // Screen dy: y increases UP in world, DOWN in screen → negate
+      drawArrow(sx, sy, fx * scale, -fy * scale, "rgba(203,213,225,0.7)");
+    }
+  }
+}
+
+function drawPath(rFn, tMin, tMax, color, N = 200) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let i = 0; i <= N; i++) {
+    const t = tMin + (tMax - tMin) * (i / N);
+    const [x, y] = rFn(t);
+    const [sx, sy] = worldToScreen(x, y);
+    if (i === 0) ctx.moveTo(sx, sy);
+    else ctx.lineTo(sx, sy);
+  }
+  ctx.stroke();
+}
+
+function drawEndpoints() {
+  const A = r1(t1min);
+  const B = r1(t1max);
+  const A2 = r2(t2min);
+  const B2 = r2(t2max);
+  const [sax, say] = worldToScreen(A[0], A[1]);
+  const [sbx, sby] = worldToScreen(B[0], B[1]);
+  ctx.fillStyle = "#4ade80";
+  ctx.beginPath(); ctx.arc(sax, say, 7, 0, 2 * Math.PI); ctx.fill();
+  ctx.fillStyle = "#f472b6";
+  ctx.beginPath(); ctx.arc(sbx, sby, 7, 0, 2 * Math.PI); ctx.fill();
+  ctx.fillStyle = "#e2e8f0";
+  ctx.font = "bold 13px system-ui";
+  ctx.fillText("A", sax + 9, say - 5);
+  ctx.fillText("B", sbx + 9, sby - 5);
+
+  // Warn if paths don't share endpoints
+  const tol = 1e-3;
+  const mismatch = (Math.abs(A[0]-A2[0]) + Math.abs(A[1]-A2[1]) + Math.abs(B[0]-B2[0]) + Math.abs(B[1]-B2[1])) > tol;
+  if (mismatch) {
+    ctx.fillStyle = "#f87171";
+    ctx.font = "bold 12px system-ui";
+    ctx.fillText("⚠ Paths do not share endpoints", 14, 28);
+  }
+}
+
+function redraw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#0b1324";
+  ctx.fillRect(0, 0, W, H);
+  drawCurlHeatmap();
+  drawGrid();
+  drawField();
+  if (showPaths) {
+    drawPath(r1, t1min, t1max, "#38bdf8");
+    drawPath(r2, t2min, t2max, "#fb923c");
+    drawEndpoints();
+  }
+}
+
+// ─── Apply & compute ───
+function apply() {
+  if (!compileAll()) return;
+  redraw();
+
+  // Line integrals
+  const I1 = lineIntegral(r1, t1min, t1max, 400);
+  const I2 = lineIntegral(r2, t2min, t2max, 400);
+  const diff = Math.abs(I1 - I2);
+  document.getElementById("int1Val").textContent = I1.toFixed(4);
+  document.getElementById("int2Val").textContent = I2.toFixed(4);
+  document.getElementById("diffVal").textContent = diff.toFixed(4);
+
+  // Conservative verdict
+  const { maxAbsCurl, conservative } = isConservativeNumeric();
+  const verdictEl = document.getElementById("verdict");
+  if (conservative) {
+    verdictEl.className = "verdict conservative";
+    verdictEl.innerHTML = `✓ Conservative (max |curl| ≈ ${maxAbsCurl.toExponential(2)})<br><span style="font-weight:400; font-size:12px;">∫<sub>C</sub> F·dr is path-independent — FTLI applies.</span>`;
+  } else {
+    verdictEl.className = "verdict nonconservative";
+    verdictEl.innerHTML = `✗ Not conservative (max |curl| ≈ ${maxAbsCurl.toFixed(3)})<br><span style="font-weight:400; font-size:12px;">Path matters. No single potential exists.</span>`;
+  }
+
+  // Potential (only meaningful if conservative)
+  const potBox = document.getElementById("potentialBox");
+  if (conservative) {
+    const A = r1(t1min), B = r1(t1max);
+    const fA = potentialAt(A[0], A[1]);
+    const fB = potentialAt(B[0], B[1]);
+    document.getElementById("potentialText").innerHTML =
+      `f(A) ≈ ${fA.toFixed(4)}<br>f(B) ≈ ${fB.toFixed(4)}<br><span style="color:#fbbf24;">f(B) − f(A) ≈ ${(fB-fA).toFixed(4)}</span>` +
+      `<br><span style="font-size:11px; color:#94a3b8;">Matches ∫<sub>C</sub> F·dr above — FTLI in action.</span>`;
+    potBox.style.display = "block";
+  } else {
+    potBox.style.display = "none";
+  }
+}
+
+// ─── Hover probe ───
+canvas.addEventListener("mousemove", e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = (e.clientX - rect.left) * (W / rect.width);
+  const sy = (e.clientY - rect.top) * (H / rect.height);
+  const [x, y] = screenToWorld(sx, sy);
+  if (!Pfn) return;
+  const fx = Pfn(x, y), fy = Qfn(x, y);
+  const c = scalarCurl(x, y);
+  document.getElementById("ovCurl").textContent =
+    `at (${x.toFixed(2)}, ${y.toFixed(2)}): F = ⟨${fx.toFixed(3)}, ${fy.toFixed(3)}⟩, curl = ${c.toFixed(3)}`;
+});
+
+// ─── Controls ───
+document.getElementById("applyBtn").onclick = apply;
+["pInput","qInput","x1Input","y1Input","x2Input","y2Input",
+ "t1minInput","t1maxInput","t2minInput","t2maxInput"].forEach(id => {
+  document.getElementById(id).addEventListener("keydown", e => {
+    if (e.key === "Enter") apply();
+  });
+});
+document.getElementById("chkField").onchange = e => { showField = e.target.checked; redraw(); };
+document.getElementById("chkCurl").onchange  = e => { showCurl = e.target.checked; redraw(); };
+document.getElementById("chkPaths").onchange = e => { showPaths = e.target.checked; redraw(); };
+document.getElementById("chkGrid").onchange  = e => { showGrid = e.target.checked; redraw(); };
+document.getElementById("adens").oninput = e => {
+  arrowDensity = +e.target.value;
+  document.getElementById("adVal").textContent = arrowDensity;
+  redraw();
+};
+document.getElementById("rg").oninput = e => {
+  rangeR = +e.target.value;
+  document.getElementById("rgVal").textContent = rangeR;
+  apply();
+};
+document.getElementById("resetViewBtn").onclick = () => {
+  rangeR = 4;
+  document.getElementById("rg").value = 4;
+  document.getElementById("rgVal").textContent = 4;
+  apply();
+};
+document.getElementById("resetAllBtn").onclick = (e) => {
+  e.preventDefault();
+  document.getElementById("pInput").value = "2*x*y + 3";
+  document.getElementById("qInput").value = "x^2 - 4*y";
+  document.getElementById("x1Input").value = "1 + 2*t";
+  document.getElementById("y1Input").value = "2 - 3*t";
+  document.getElementById("x2Input").value = "1 + 2*t";
+  document.getElementById("y2Input").value = "2 - 3*t^3";
+  document.getElementById("t1minInput").value = "0";
+  document.getElementById("t1maxInput").value = "1";
+  document.getElementById("t2minInput").value = "0";
+  document.getElementById("t2maxInput").value = "1";
+  apply();
+};
+
+// ─── Init ───
+apply();
+</script>
+</body>
+</html>

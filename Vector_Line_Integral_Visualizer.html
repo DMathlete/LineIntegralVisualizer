@@ -159,7 +159,7 @@
       <label><input type="checkbox" id="chkArrowsOnCurve" checked>
         <span><span class="legend-dot" style="background:#fbbf24;"></span>F along curve</span></label>
       <label><input type="checkbox" id="chkTangent" checked>
-        <span><span class="legend-dot" style="background:#38bdf8;"></span>Tangent T + projection F·T</span></label>
+        <span><span class="legend-dot" style="background:#38bdf8;"></span>Tangent T</span></label>
       <label><input type="checkbox" id="chkCurtain" checked>
         <span><span class="legend-dot" style="background:#4ade80;"></span>/<span class="legend-dot" style="background:#f87171;"></span> Work curtain (F·T)</span></label>
       <label><input type="checkbox" id="chkPanels" checked>
@@ -608,13 +608,6 @@ function rebuildContent() {
       // unit tangent
       const tArr = makeArrow(s.pt, s.T, 0x38bdf8, 0.6);
       if (tArr) contentGroup.add(tArr);
-      // projection F·T along T
-      if (Math.abs(s.FdotT) > 1e-6) {
-        const projVec = [s.T[0]*s.FdotT, s.T[1]*s.FdotT, s.T[2]*s.FdotT];
-        const col = s.FdotT >= 0 ? 0x4ade80 : 0xf87171;
-        const p = makeArrow(s.pt, projVec, col, arrowFactor);
-        if (p) contentGroup.add(p);
-      }
     }
   }
 

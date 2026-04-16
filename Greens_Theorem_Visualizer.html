@@ -6,19 +6,20 @@
 <title>Lesson 53: Green's Theorem Visualizer</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 18px; min-height: 100vh; }
-  h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
-  #subtitle { color: #fbbf24; font-size: 13px; font-style: italic; margin-bottom: 6px; text-align: center; max-width: 960px; }
-  #formula { color: #cbd5e1; font-size: 14px; margin-bottom: 10px; text-align: center; font-family: "Times New Roman", serif; }
-  #nav-links { font-size: 12px; color: #64748b; margin-bottom: 10px; }
-  #nav-links a { color: #38bdf8; text-decoration: none; margin: 0 6px; }
-  #nav-links a:hover { text-decoration: underline; }
-  #main { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
-  #canvasWrap { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid #334155; background: #0b1324; }
-  #canvasWrap canvas { display: block; }
-  #overlay { position: absolute; top: 10px; left: 10px; font: 12px "Courier New", monospace; color: #e2e8f0; pointer-events: none; background: rgba(11,19,36,0.75); padding: 6px 10px; border-radius: 4px; max-width: 420px; }
-  #hint { position: absolute; bottom: 10px; left: 10px; font-size: 11px; color: #64748b; pointer-events: none; background: rgba(11,19,36,0.6); padding: 3px 6px; border-radius: 3px; }
-  .panel { background: #1e293b; border-radius: 8px; border: 1px solid #334155; padding: 14px; width: 340px; max-height: 960px; overflow-y: auto; }
+  body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; margin: 0; overflow: hidden; width: 100vw; height: 100vh; }
+  #topBar { position: fixed; top: 0; left: 0; right: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: rgba(15,23,42,0.85); backdrop-filter: blur(6px); border-bottom: 1px solid #334155; }
+  #topBar h1 { font-size: 18px; margin: 0; white-space: nowrap; }
+  #topBar .nav-links { font-size: 12px; }
+  #topBar .nav-links a { color: #38bdf8; text-decoration: none; margin: 0 6px; }
+  #topBar .nav-links a:hover { text-decoration: underline; }
+  #togglePanel { background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; white-space: nowrap; }
+  #togglePanel:hover { background: rgba(251,191,36,0.3); }
+  #canvasWrap { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; overflow: hidden; background: #0b1324; z-index: 0; }
+  #canvasWrap canvas { display: block; width: 100%; height: 100%; }
+  #overlay { position: fixed; top: 56px; left: 10px; font: 12px "Courier New", monospace; color: #e2e8f0; pointer-events: none; background: rgba(11,19,36,0.75); padding: 6px 10px; border-radius: 4px; max-width: 420px; z-index: 10; }
+  #hint { position: fixed; bottom: 10px; left: 10px; font-size: 11px; color: #64748b; pointer-events: none; background: rgba(11,19,36,0.6); padding: 3px 6px; border-radius: 3px; z-index: 10; }
+  .panel { position: fixed; top: 46px; right: 0; bottom: 0; background: rgba(30,41,59,0.92); backdrop-filter: blur(8px); border-left: 1px solid #334155; padding: 14px; width: 350px; overflow-y: auto; z-index: 20; transition: transform 0.3s ease; }
+  .panel.collapsed { transform: translateX(100%); }
   .label { color: #fbbf24; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
   .divider { border-top: 1px solid #334155; margin: 12px 0; padding-top: 12px; }
   label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-bottom: 6px; }
@@ -61,36 +62,33 @@
 </style>
 </head>
 <body>
-<h1>Lesson 53: Green's Theorem Visualizer</h1>
-<p id="subtitle">A closed curve, the region it bounds, and Green's Theorem verifying itself on both sides.</p>
-<div id="formula">
-  Circulation: &nbsp;∮<sub>∂D</sub> P dx + Q dy = ∬<sub>D</sub> (Q<sub>x</sub> − P<sub>y</sub>) dA
-  &nbsp;&nbsp;|&nbsp;&nbsp;
-  Flux: &nbsp;∮<sub>∂D</sub> P dy − Q dx = ∬<sub>D</sub> (P<sub>x</sub> + Q<sub>y</sub>) dA
-</div>
-<div id="nav-links">
-  <a href="index.html">← Calculus Tools</a>
-  <span style="color:#334155;">|</span>
-  <a href="Line_Integral_Visualizer.html">Scalar Line Integral</a>
-  <span style="color:#334155;">|</span>
-  <a href="Vector_Line_Integral_Visualizer.html">Vector Line Integral</a>
-  <span style="color:#334155;">|</span>
-  <a href="Path_Independence_Visualizer.html">Path Independence (L52)</a>
-  <span style="color:#334155;">|</span>
-  <a href="#" id="resetAllBtn">Reset to defaults</a>
+<div id="topBar">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <h1>Green's Theorem</h1>
+    <span style="color:#fbbf24;font-size:12px;font-style:italic;">∮ P dx + Q dy = ∬ (Q<sub>x</sub> − P<sub>y</sub>) dA</span>
+  </div>
+  <div class="nav-links">
+    <a href="index.html">← Calculus Tools</a>
+    <span style="color:#334155;">|</span>
+    <a href="Line_Integral_Visualizer.html">Scalar</a>
+    <span style="color:#334155;">|</span>
+    <a href="Vector_Line_Integral_Visualizer.html">Vector</a>
+    <span style="color:#334155;">|</span>
+    <a href="Path_Independence_Visualizer.html">Path Independence</a>
+  </div>
+  <button id="togglePanel">Controls ☰</button>
 </div>
 
-<div id="main">
-  <div id="canvasWrap">
-    <canvas id="plot" width="720" height="720"></canvas>
+<div id="canvasWrap">
+  <canvas id="plot"></canvas>
     <div id="overlay">
       <div id="ovField"></div>
       <div id="ovProbe" style="color:#a78bfa; margin-top:3px;"></div>
     </div>
     <div id="hint">Hover to probe F, curl, div at a point</div>
-  </div>
+</div>
 
-  <div class="panel">
+<div class="panel">
     <div class="btn-row" style="margin-bottom: 12px;">
       <button class="action-btn" id="applyBtn">Apply (↵)</button>
       <button class="secondary-btn" id="microBtn">▶ Microcurl</button>
@@ -262,7 +260,22 @@ let microAnim = null;
 
 const canvas = document.getElementById("plot");
 const ctx = canvas.getContext("2d");
-const W = canvas.width, H = canvas.height;
+let W, H;
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resizeCanvas();
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  redraw();
+});
 
 // ─── Coordinates ───
 function worldToScreen(x, y) {
@@ -667,8 +680,8 @@ function apply() {
 // ─── Hover probe ───
 canvas.addEventListener("mousemove", e => {
   const rect = canvas.getBoundingClientRect();
-  const sx = (e.clientX - rect.left) * (W / rect.width);
-  const sy = (e.clientY - rect.top)  * (H / rect.height);
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
   const [x, y] = screenToWorld(sx, sy);
   if (!Pfn) return;
   const fx = Pfn(x,y), fy = Qfn(x,y);
@@ -739,17 +752,11 @@ document.getElementById("rg").oninput = e => {
   document.getElementById("rgVal").textContent = rangeR;
   redraw();
 };
-document.getElementById("resetAllBtn").onclick = (e) => {
-  e.preventDefault();
-  document.getElementById("pInput").value = "-y";
-  document.getElementById("qInput").value = "x";
-  document.getElementById("xInput").value = "cos(t)";
-  document.getElementById("yInput").value = "sin(t)";
-  document.getElementById("tminInput").value = "0";
-  document.getElementById("tmaxInput").value = "2*pi";
-  setMode("circ");
-  apply();
-};
+
+// ─── Panel toggle ───
+document.getElementById('togglePanel').addEventListener('click', () => {
+  document.querySelector('.panel').classList.toggle('collapsed');
+});
 
 // ─── Init ───
 apply();

@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Divergence Theorem Visualizer — MA204 | Lesson 62</title>
+<style>
+  :root {
+    --bg: #0e1016;
+    --panel: #151823;
+    --panel-2: #1b1f2e;
+    --border: #2a3042;
+    --text: #e6e8ef;
+    --text-dim: #8a92a6;
+    --accent: #7c5cff;
+    --accent-2: #20c997;
+    --flux: #c084fc;
+    --vol: #f59e0b;
+    --good: #22c55e;
+    --bad: #ef4444;
+    --mono: "JetBrains Mono","Fira Code",Consolas,monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system,"Segoe UI",Roboto,sans-serif;
+    height: 100%;
+  }
+  #container {
+    display: grid;
+    grid-template-columns: 320px 1fr 320px;
+    height: 100vh;
+    gap: 0;
+  }
+  #controls, #results {
+    background: var(--panel);
+    padding: 16px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+  }
+  #results { border-right: none; border-left: 1px solid var(--border); }
+  #canvas-wrap {
+    position: relative;
+    background: radial-gradient(ellipse at center, #161a26 0%, #0b0d14 100%);
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  h1 {
+    margin: 0 0 4px 0; font-size: 16px; font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .subtitle {
+    color: var(--text-dim); font-size: 11px; margin-bottom: 16px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .nav-links {
+    font-size: 11px; margin-bottom: 16px;
+    padding: 8px 10px; background: var(--panel-2);
+    border-radius: 6px; border: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  }
+  .nav-links a { color: #38bdf8; text-decoration: none; }
+  .nav-links a:hover { text-decoration: underline; color: #7dd3fc; }
+  .nav-links .sep { color: var(--border); margin: 0 2px; }
+  label {
+    display: block; font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    margin: 12px 0 4px 0;
+  }
+  input[type=text], select {
+    width: 100%; padding: 6px 8px;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px;
+    font-family: var(--mono); font-size: 12px;
+    outline: none;
+  }
+  input[type=text]:focus, select:focus { border-color: var(--accent); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  button {
+    width: 100%; padding: 8px; margin-top: 12px;
+    background: var(--accent); color: white; border: none; border-radius: 4px;
+    font-weight: 600; font-size: 13px; cursor: pointer;
+    transition: background 120ms;
+  }
+  button:hover { background: #6b4fe0; }
+  button.secondary { background: var(--panel-2); border: 1px solid var(--border); }
+  button.secondary:hover { background: #222738; }
+  .preset-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+  .preset-grid button {
+    margin-top: 0; padding: 6px 4px; font-size: 11px;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .preset-grid button:hover { background: #222738; border-color: var(--accent); }
+  .preset-grid button.active {
+    background: var(--accent); border-color: var(--accent); color: white;
+  }
+  .result-box {
+    padding: 12px; margin-bottom: 12px;
+    background: var(--panel-2); border-radius: 6px;
+    border-left: 3px solid var(--accent);
+  }
+  .result-box.flux { border-left-color: var(--flux); }
+  .result-box.vol  { border-left-color: var(--vol); }
+  .result-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; }
+  .result-formula { font-family: var(--mono); font-size: 12px; color: var(--text-dim); margin: 4px 0; }
+  .result-value { font-family: var(--mono); font-size: 20px; font-weight: 600; margin-top: 4px; }
+  .agreement {
+    padding: 12px; border-radius: 6px; margin-top: 8px;
+    text-align: center; font-weight: 600;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+  }
+  .agreement.good { border-color: var(--good); color: var(--good); }
+  .agreement.bad  { border-color: var(--bad); color: var(--bad); }
+  .agreement small { display: block; font-weight: 400; font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  #legend {
+    position: absolute; bottom: 12px; left: 12px;
+    background: rgba(21,24,35,0.9); padding: 10px 12px;
+    border-radius: 6px; border: 1px solid var(--border);
+    font-size: 11px; color: var(--text-dim);
+    backdrop-filter: blur(6px);
+  }
+  #legend .sw {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 2px; margin-right: 6px; vertical-align: middle;
+  }
+  #legend .row { margin: 3px 0; grid-template-columns: auto 1fr; gap: 4px; }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; background: var(--panel-2); color: var(--text-dim);
+    margin-left: 6px; font-family: var(--mono);
+  }
+  .note {
+    background: var(--panel-2); padding: 8px 10px; border-radius: 4px;
+    font-size: 11px; color: var(--text-dim); margin-top: 8px;
+    border-left: 2px solid var(--accent-2);
+  }
+  details { margin-top: 12px; }
+  summary {
+    cursor: pointer; font-size: 12px; color: var(--text-dim);
+    padding: 4px 0; outline: none;
+  }
+  summary:hover { color: var(--text); }
+  .hint {
+    font-size: 10px; color: var(--text-dim); margin-top: 2px;
+    font-family: var(--mono);
+  }
+  .divbar {
+    display: flex; height: 10px; margin-top: 6px; border-radius: 2px; overflow: hidden;
+    background: linear-gradient(to right, #2563eb 0%, #93c5fd 25%, #1a1e2c 50%, #fca5a5 75%, #dc2626 100%);
+  }
+  .divlabels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div id="container">
+
+  <!-- LEFT: Controls -->
+  <div id="controls">
+    <h1>Divergence Theorem</h1>
+    <div class="subtitle">MA204 · Lesson 62</div>
+
+    <div class="nav-links">
+      <a href="index.html">← Calculus Tools</a>
+      <span class="sep">|</span>
+      <a href="Surface_Integral_Visualizer.html">Surface Integral</a>
+      <span class="sep">|</span>
+      <a href="Stokes_Theorem_Visualizer.html">Stokes' Theorem</a>
+    </div>
+
+    <label>Preset</label>
+    <div class="preset-grid" id="presets">
+      <button data-preset="hedgehog_ball">Hedgehog · Ball</button>
+      <button data-preset="cube_linear">Cube · Linear</button>
+      <button data-preset="cyl_radial">Cylinder · Radial</button>
+      <button data-preset="ball_rotational">Ball · Rotational</button>
+      <button data-preset="cube_nonlinear">Cube · Nonlinear</button>
+      <button data-preset="ball_inverse">Ball · Inv-Square</button>
+    </div>
+
+    <label>Solid region E</label>
+    <select id="region">
+      <option value="ball">Ball  (radius a)</option>
+      <option value="cube">Cube  [xmin,xmax]×[ymin,ymax]×[zmin,zmax]</option>
+      <option value="cylinder">Cylinder  r &le; a,  z ∈ [zmin,zmax]</option>
+    </select>
+
+    <div id="region-params">
+      <label>Radius a</label>
+      <input type="text" id="radius" value="1">
+      <div class="row3">
+        <div><label>xmin</label><input type="text" id="xmin" value="0"></div>
+        <div><label>ymin</label><input type="text" id="ymin" value="0"></div>
+        <div><label>zmin</label><input type="text" id="zmin" value="0"></div>
+      </div>
+      <div class="row3">
+        <div><label>xmax</label><input type="text" id="xmax" value="1"></div>
+        <div><label>ymax</label><input type="text" id="ymax" value="1"></div>
+        <div><label>zmax</label><input type="text" id="zmax" value="1"></div>
+      </div>
+    </div>
+
+    <label>Vector field F = ⟨P, Q, R⟩</label>
+    <input type="text" id="P" value="x" placeholder="P(x,y,z)">
+    <input type="text" id="Q" value="y" placeholder="Q(x,y,z)">
+    <input type="text" id="R" value="z" placeholder="R(x,y,z)">
+    <div class="hint">JS-like: x^2 → x*x, use sin(x), cos(x), exp(x)</div>
+
+    <label>Mesh resolution <span class="pill" id="resLabel">40</span></label>
+    <input type="range" id="res" min="16" max="64" step="4" value="40" style="width:100%">
+
+    <button id="update">Apply</button>
+    <button id="reset" class="secondary">Reset View</button>
+
+    <details open>
+      <summary>Display</summary>
+      <label><input type="checkbox" id="showBoundary" checked> Boundary surface ∂E</label>
+      <label><input type="checkbox" id="showHeatmap" checked> Divergence heatmap (interior)</label>
+      <label><input type="checkbox" id="showField" checked> Field arrows</label>
+      <label><input type="checkbox" id="showNormals"> Outward normals on ∂E</label>
+    </details>
+
+    <div class="note" id="note">
+      Divergence Theorem:  ∬<sub>∂E</sub> F · dS  =  ∭<sub>E</sub> div F  dV
+    </div>
+  </div>
+
+  <!-- CENTER: Canvas -->
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="legend">
+      <div><b>Divergence heatmap</b></div>
+      <div class="divbar"></div>
+      <div class="divlabels"><span>div &lt; 0</span><span>0</span><span>div &gt; 0</span></div>
+      <div class="row" style="margin-top:8px;"><span class="sw" style="background:#7c5cff"></span><span>Boundary ∂E</span></div>
+      <div class="row"><span class="sw" style="background:#f59e0b"></span><span>Outward normal</span></div>
+      <div class="row"><span class="sw" style="background:#22c55e"></span><span>Field F</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Results -->
+  <div id="results">
+    <h1>Numerical Verification</h1>
+    <div class="subtitle">Two sides of one equation</div>
+
+    <div class="result-box flux">
+      <div class="result-label">Surface flux  (LHS)</div>
+      <div class="result-formula">∬<sub>∂E</sub> F · dS</div>
+      <div class="result-value" id="fluxVal">—</div>
+    </div>
+
+    <div class="result-box vol">
+      <div class="result-label">Volume integral  (RHS)</div>
+      <div class="result-formula">∭<sub>E</sub> div F  dV</div>
+      <div class="result-value" id="volVal">—</div>
+    </div>
+
+    <div class="agreement" id="agreement">
+      <div>Checking…</div>
+      <small>|LHS − RHS|</small>
+    </div>
+
+    <details>
+      <summary>Divergence</summary>
+      <div class="result-formula" style="margin-top:6px;">
+        div F = P<sub>x</sub> + Q<sub>y</sub> + R<sub>z</sub>
+      </div>
+      <div class="hint" id="divRange">range: —</div>
+    </details>
+
+    <details>
+      <summary>What you're seeing</summary>
+      <div class="hint" style="line-height:1.5; color: var(--text-dim);">
+        The colored cloud inside E shows <b>div F</b> at each point — red where fluid is spreading out (source), blue where it's collapsing in (sink). The arrows on the boundary are the field itself — note whether they point outward (positive flux) or inward (negative).
+        <br><br>
+        Divergence Theorem says the <b>total interior divergence</b> equals the <b>net outward flux</b> through ∂E.
+      </div>
+    </details>
+
+    <details>
+      <summary>Preset notes</summary>
+      <div class="hint" id="presetNote" style="line-height:1.5;">—</div>
+    </details>
+  </div>
+
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.min.js",
+    "OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/OrbitControls.js",
+    "mathjs": "https://cdn.jsdelivr.net/npm/mathjs@11.11.1/lib/browser/math.min.js"
+  }
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjs@11.11.1/lib/browser/math.min.js"></script>
+<script>
+/* =========================================================================
+   Divergence Theorem Visualizer — MA204 Lesson 62
+   Numerical comparison of:
+     LHS = ∬_{∂E} F · dS    (Riemann sum over parametrized boundary)
+     RHS = ∭_{E}  div F dV   (midpoint sum over grid inside E)
+   ========================================================================= */
+
+/* ───────── Smart number formatter: π-multiples > simple fractions > 4 decimals ───────── */
+function bestFraction(x, maxDen) {
+  if (!isFinite(x)) return null;
+  let bestP = 0, bestQ = 1, bestErr = Math.abs(x);
+  for (let q = 1; q <= maxDen; q++) {
+    const p = Math.round(x * q);
+    const err = Math.abs(x - p / q);
+    if (err < bestErr) { bestP = p; bestQ = q; bestErr = err; }
+  }
+  return { p: bestP, q: bestQ, err: bestErr };
+}
+function formatPiRational(p, q) {
+  if (p === 0) return "0";
+  const sign = p < 0 ? "-" : "";
+  const ap = Math.abs(p);
+  const num = ap === 1 ? "π" : ap + "π";
+  return q === 1 ? sign + num : sign + num + "/" + q;
+}
+function fmt(x) {
+  if (!isFinite(x)) return String(x);
+  if (Math.abs(x) < 5e-4) return "0";
+  const tol = Math.max(3e-3, 3e-3 * Math.abs(x));
+  const pi = bestFraction(x / Math.PI, 16);
+  if (pi && pi.err * Math.PI < tol && Math.abs(pi.p) <= 16 && pi.q <= 16 && !(pi.p === 0)) {
+    return formatPiRational(pi.p, pi.q);
+  }
+  const fr = bestFraction(x, 30);
+  if (fr && fr.err < tol) {
+    if (fr.q === 1) return String(fr.p);
+    return fr.p + "/" + fr.q;
+  }
+  return x.toFixed(4);
+}
+
+let scene, camera, renderer, controls;
+let boundaryMesh = null, heatmapPoints = null, fieldArrows = null, normalArrows = null;
+let axesGroup = null;
+
+const PRESETS = {
+  hedgehog_ball: {
+    region: "ball", a: 1,
+    P: "x", Q: "y", R: "z",
+    note: "F=⟨x,y,z⟩ on unit ball. div F = 3. ∭ = 3·(4π/3) = 4π ≈ 12.566. Flux = 4π. Pure outward hedgehog."
+  },
+  cube_linear: {
+    region: "cube", xmin: "0", xmax: "1", ymin: "0", ymax: "1", zmin: "0", zmax: "1",
+    P: "x", Q: "y", R: "z",
+    note: "F=⟨x,y,z⟩ on unit cube. div F = 3. ∭ = 3·1 = 3. Flux = 3. Same field, different region."
+  },
+  cyl_radial: {
+    region: "cylinder", a: 1, zmin: "0", zmax: "1",
+    P: "x", Q: "y", R: "0",
+    note: "F=⟨x,y,0⟩ on unit cylinder, height 1. div F = 2. ∭ = 2·π = 2π ≈ 6.283. Top/bottom contribute zero, side contributes 2π."
+  },
+  ball_rotational: {
+    region: "ball", a: 1,
+    P: "-y", Q: "x", R: "0",
+    note: "F=⟨-y,x,0⟩ on unit ball. div F = 0 everywhere. Both sides = 0. Pure rotation — no net source/sink."
+  },
+  cube_nonlinear: {
+    region: "cube", xmin: "0", xmax: "1", ymin: "0", ymax: "1", zmin: "0", zmax: "1",
+    P: "x^3", Q: "y^3", R: "z^3",
+    note: "F=⟨x³,y³,z³⟩ on unit cube. div F = 3(x²+y²+z²). ∭ = 3·3·(1/3) = 3. Variable divergence, still integrates to 3."
+  },
+  ball_inverse: {
+    region: "ball", a: 1,
+    P: "x*(x^2+y^2+z^2)", Q: "y*(x^2+y^2+z^2)", R: "z*(x^2+y^2+z^2)",
+    note: "F=⟨xr²,yr²,zr²⟩ on unit ball. div F = 5r². ∭ = 4π. Flux = 4π. Nonlinear radial — both sides still match."
+  }
+};
+
+/* --- Initialize --- */
+function init() {
+  const canvas = document.getElementById("canvas");
+  const wrap = canvas.parentElement;
+
+  THREE.Object3D.DEFAULT_UP = new THREE.Vector3(0, 0, 1);
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b0d14);
+
+  camera = new THREE.PerspectiveCamera(50, wrap.clientWidth / wrap.clientHeight, 0.01, 100);
+  camera.up.set(0, 0, 1);
+  camera.position.set(4.0, 4.0, 3.0);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+
+  controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.target.set(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.6);
+  dl.position.set(5, 5, 5);
+  scene.add(dl);
+
+  buildAxes();
+
+  window.addEventListener("resize", onResize);
+  onResize();
+  animate();
+}
+
+function onResize() {
+  const wrap = document.getElementById("canvas-wrap");
+  camera.aspect = wrap.clientWidth / wrap.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+function buildAxes() {
+  if (axesGroup) scene.remove(axesGroup);
+  axesGroup = new THREE.Group();
+  const L = 1.8;
+  const mkAxis = (dir, col) => {
+    const g = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0,0,0), new THREE.Vector3(...dir).multiplyScalar(L)
+    ]);
+    return new THREE.Line(g, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.45 }));
+  };
+  axesGroup.add(mkAxis([1,0,0], 0xff6b6b));
+  axesGroup.add(mkAxis([0,1,0], 0x5fe36a));
+  axesGroup.add(mkAxis([0,0,1], 0x6ca5ff));
+  scene.add(axesGroup);
+}
+
+/* --- Field compilation --- */
+function compileField(pE, qE, rE) {
+  const P = math.compile(pE), Q = math.compile(qE), R = math.compile(rE);
+  return (x, y, z) => {
+    const s = { x, y, z };
+    try {
+      return {
+        p: P.evaluate(s),
+        q: Q.evaluate(s),
+        r: R.evaluate(s)
+      };
+    } catch (e) { return { p: 0, q: 0, r: 0 }; }
+  };
+}
+
+function divAt(F, x, y, z, h = 1e-4) {
+  const fxp = F(x + h, y, z), fxm = F(x - h, y, z);
+  const fyp = F(x, y + h, z), fym = F(x, y - h, z);
+  const fzp = F(x, y, z + h), fzm = F(x, y, z - h);
+  return (fxp.p - fxm.p) / (2 * h)
+       + (fyp.q - fym.q) / (2 * h)
+       + (fzp.r - fzm.r) / (2 * h);
+}
+
+/* --- Color map for divergence (diverging, symmetric around 0) --- */
+function divColor(d, vmax) {
+  const t = Math.max(-1, Math.min(1, d / (vmax || 1))); // [-1,1]
+  // blue (sink) → dark (0) → red (source)
+  let r, g, b;
+  if (t >= 0) {
+    r = 0.1 + 0.85 * t;
+    g = 0.1 + 0.15 * (1 - t);
+    b = 0.1 + 0.15 * (1 - t);
+  } else {
+    const a = -t;
+    r = 0.1 + 0.15 * (1 - a);
+    g = 0.1 + 0.15 * (1 - a);
+    b = 0.1 + 0.85 * a;
+  }
+  return new THREE.Color(r, g, b);
+}
+
+/* =========================================================================
+   REGION PARAMETRIZATIONS
+   Each region provides:
+     interior(t1,t2,t3) -> (x,y,z, weight)   // for triple integral, t1,t2,t3 ∈ [0,1]
+     surfacePatches: array of { param(u,v) -> (x,y,z, nx,ny,nz_out) }
+                      plus bounds (u∈[0,1], v∈[0,1]) and differential elements
+   For closed surfaces we return an array of faces each parametrized on
+   [0,1]^2 with an outward normal convention. The flux Riemann sums over all.
+   ========================================================================= */
+
+/* Build volume Riemann sum over E: midpoint rule */
+function volumeIntegral(F, region, N) {
+  let sum = 0;
+  let minD = Infinity, maxD = -Infinity;
+  const divSamples = [];
+  if (region.kind === "ball") {
+    const a = region.a;
+    // Spherical: r∈[0,a], θ∈[0,2π], φ∈[0,π], dV = r² sinφ dr dθ dφ
+    const Nr = N, Nt = 2 * N, Np = N;
+    const dr = a / Nr, dt = (2 * Math.PI) / Nt, dp = Math.PI / Np;
+    for (let i = 0; i < Nr; i++) {
+      const r = (i + 0.5) * dr;
+      for (let j = 0; j < Nt; j++) {
+        const th = (j + 0.5) * dt;
+        for (let k = 0; k < Np; k++) {
+          const ph = (k + 0.5) * dp;
+          const x = r * Math.sin(ph) * Math.cos(th);
+          const y = r * Math.sin(ph) * Math.sin(th);
+          const z = r * Math.cos(ph);
+          const d = divAt(F, x, y, z);
+          const jac = r * r * Math.sin(ph);
+          sum += d * jac * dr * dt * dp;
+          if (d < minD) minD = d; if (d > maxD) maxD = d;
+          if (divSamples.length < 3000) divSamples.push({ x, y, z, d });
+        }
+      }
+    }
+  } else if (region.kind === "cube") {
+    const { xmin, xmax, ymin, ymax, zmin, zmax } = region;
+    const Nx = N, Ny = N, Nz = N;
+    const dx = (xmax - xmin) / Nx;
+    const dy = (ymax - ymin) / Ny;
+    const dz = (zmax - zmin) / Nz;
+    for (let i = 0; i < Nx; i++) {
+      const x = xmin + (i + 0.5) * dx;
+      for (let j = 0; j < Ny; j++) {
+        const y = ymin + (j + 0.5) * dy;
+        for (let k = 0; k < Nz; k++) {
+          const z = zmin + (k + 0.5) * dz;
+          const d = divAt(F, x, y, z);
+          sum += d * dx * dy * dz;
+          if (d < minD) minD = d; if (d > maxD) maxD = d;
+          if (divSamples.length < 3000) divSamples.push({ x, y, z, d });
+        }
+      }
+    }
+  } else if (region.kind === "cylinder") {
+    const { a, zmin, zmax } = region;
+    const Nr = N, Nt = 2 * N, Nz = N;
+    const dr = a / Nr, dt = (2 * Math.PI) / Nt, dz = (zmax - zmin) / Nz;
+    for (let i = 0; i < Nr; i++) {
+      const r = (i + 0.5) * dr;
+      for (let j = 0; j < Nt; j++) {
+        const th = (j + 0.5) * dt;
+        for (let k = 0; k < Nz; k++) {
+          const z = zmin + (k + 0.5) * dz;
+          const x = r * Math.cos(th);
+          const y = r * Math.sin(th);
+          const d = divAt(F, x, y, z);
+          sum += d * r * dr * dt * dz;
+          if (d < minD) minD = d; if (d > maxD) maxD = d;
+          if (divSamples.length < 3000) divSamples.push({ x, y, z, d });
+        }
+      }
+    }
+  }
+  return { sum, minD, maxD, divSamples };
+}
+
+/* --- Surface flux Riemann sum over closed boundary ∂E --- */
+function fluxIntegral(F, region, N) {
+  let sum = 0;
+  const faces = [];
+
+  if (region.kind === "ball") {
+    // Single sphere patch (θ, φ)
+    const a = region.a;
+    const Nt = 2 * N, Np = N;
+    const dt = (2 * Math.PI) / Nt, dp = Math.PI / Np;
+    for (let i = 0; i < Nt; i++) {
+      const th = (i + 0.5) * dt;
+      for (let j = 0; j < Np; j++) {
+        const ph = (j + 0.5) * dp;
+        const s = Math.sin(ph), c = Math.cos(ph);
+        const x = a * s * Math.cos(th);
+        const y = a * s * Math.sin(th);
+        const z = a * c;
+        // outward normal = (x,y,z)/a, surface element = a² sin(φ) dθ dφ
+        const nx = x / a, ny = y / a, nz = z / a;
+        const f = F(x, y, z);
+        sum += (f.p * nx + f.q * ny + f.r * nz) * a * a * s * dt * dp;
+      }
+    }
+  } else if (region.kind === "cube") {
+    const { xmin, xmax, ymin, ymax, zmin, zmax } = region;
+    const Nx = N, Ny = N, Nz = N;
+    // six faces, each with constant coord and outward normal
+    const faceList = [
+      { fixed: "x", val: xmin, nrm: [-1,0,0], aMin: ymin, aMax: ymax, bMin: zmin, bMax: zmax, Na: Ny, Nb: Nz },
+      { fixed: "x", val: xmax, nrm: [+1,0,0], aMin: ymin, aMax: ymax, bMin: zmin, bMax: zmax, Na: Ny, Nb: Nz },
+      { fixed: "y", val: ymin, nrm: [0,-1,0], aMin: xmin, aMax: xmax, bMin: zmin, bMax: zmax, Na: Nx, Nb: Nz },
+      { fixed: "y", val: ymax, nrm: [0,+1,0], aMin: xmin, aMax: xmax, bMin: zmin, bMax: zmax, Na: Nx, Nb: Nz },
+      { fixed: "z", val: zmin, nrm: [0,0,-1], aMin: xmin, aMax: xmax, bMin: ymin, bMax: ymax, Na: Nx, Nb: Ny },
+      { fixed: "z", val: zmax, nrm: [0,0,+1], aMin: xmin, aMax: xmax, bMin: ymin, bMax: ymax, Na: Nx, Nb: Ny }
+    ];
+    for (const F_ of faceList) {
+      const da = (F_.aMax - F_.aMin) / F_.Na;
+      const db = (F_.bMax - F_.bMin) / F_.Nb;
+      for (let i = 0; i < F_.Na; i++) {
+        for (let j = 0; j < F_.Nb; j++) {
+          const a = F_.aMin + (i + 0.5) * da;
+          const b = F_.bMin + (j + 0.5) * db;
+          let x, y, z;
+          if (F_.fixed === "x") { x = F_.val; y = a; z = b; }
+          else if (F_.fixed === "y") { x = a; y = F_.val; z = b; }
+          else { x = a; y = b; z = F_.val; }
+          const f = F(x, y, z);
+          sum += (f.p * F_.nrm[0] + f.q * F_.nrm[1] + f.r * F_.nrm[2]) * da * db;
+        }
+      }
+    }
+  } else if (region.kind === "cylinder") {
+    const { a, zmin, zmax } = region;
+    const Nt = 2 * N, Nz = N, Nr = N;
+    // lateral side: r = a, θ∈[0,2π], z∈[zmin,zmax], outward = (cosθ,sinθ,0)
+    const dt = (2 * Math.PI) / Nt, dz = (zmax - zmin) / Nz;
+    for (let i = 0; i < Nt; i++) {
+      const th = (i + 0.5) * dt;
+      for (let j = 0; j < Nz; j++) {
+        const z = zmin + (j + 0.5) * dz;
+        const x = a * Math.cos(th), y = a * Math.sin(th);
+        const nx = Math.cos(th), ny = Math.sin(th);
+        const f = F(x, y, z);
+        sum += (f.p * nx + f.q * ny) * a * dt * dz;
+      }
+    }
+    // bottom disk: z = zmin, outward = (0,0,-1)
+    const dr = a / Nr;
+    for (let i = 0; i < Nr; i++) {
+      const r = (i + 0.5) * dr;
+      for (let j = 0; j < Nt; j++) {
+        const th = (j + 0.5) * dt;
+        const x = r * Math.cos(th), y = r * Math.sin(th), z = zmin;
+        const f = F(x, y, z);
+        sum += (-f.r) * r * dr * dt;
+      }
+    }
+    // top disk: z = zmax, outward = (0,0,+1)
+    for (let i = 0; i < Nr; i++) {
+      const r = (i + 0.5) * dr;
+      for (let j = 0; j < Nt; j++) {
+        const th = (j + 0.5) * dt;
+        const x = r * Math.cos(th), y = r * Math.sin(th), z = zmax;
+        const f = F(x, y, z);
+        sum += (f.r) * r * dr * dt;
+      }
+    }
+  }
+  return sum;
+}
+
+/* --- Visual: boundary surface mesh --- */
+function buildBoundaryMesh(region) {
+  const geom = new THREE.BufferGeometry();
+  const positions = [];
+  const indices = [];
+  let vIdx = 0;
+
+  const pushQuad = (p1, p2, p3, p4) => {
+    positions.push(...p1, ...p2, ...p3, ...p4);
+    indices.push(vIdx, vIdx+1, vIdx+2, vIdx, vIdx+2, vIdx+3);
+    vIdx += 4;
+  };
+
+  if (region.kind === "ball") {
+    const a = region.a;
+    const N = 36;
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const t0 = (i / N) * 2 * Math.PI, t1 = ((i+1) / N) * 2 * Math.PI;
+        const p0 = (j / N) * Math.PI, p1 = ((j+1) / N) * Math.PI;
+        const pt = (t, p) => [a*Math.sin(p)*Math.cos(t), a*Math.sin(p)*Math.sin(t), a*Math.cos(p)];
+        pushQuad(pt(t0,p0), pt(t1,p0), pt(t1,p1), pt(t0,p1));
+      }
+    }
+  } else if (region.kind === "cube") {
+    const { xmin, xmax, ymin, ymax, zmin, zmax } = region;
+    // 6 faces
+    const faces = [
+      [[xmin,ymin,zmin],[xmin,ymax,zmin],[xmin,ymax,zmax],[xmin,ymin,zmax]], // -x
+      [[xmax,ymin,zmin],[xmax,ymin,zmax],[xmax,ymax,zmax],[xmax,ymax,zmin]], // +x
+      [[xmin,ymin,zmin],[xmin,ymin,zmax],[xmax,ymin,zmax],[xmax,ymin,zmin]], // -y
+      [[xmin,ymax,zmin],[xmax,ymax,zmin],[xmax,ymax,zmax],[xmin,ymax,zmax]], // +y
+      [[xmin,ymin,zmin],[xmax,ymin,zmin],[xmax,ymax,zmin],[xmin,ymax,zmin]], // -z
+      [[xmin,ymin,zmax],[xmin,ymax,zmax],[xmax,ymax,zmax],[xmax,ymin,zmax]]  // +z
+    ];
+    for (const f of faces) pushQuad(f[0],f[1],f[2],f[3]);
+  } else if (region.kind === "cylinder") {
+    const { a, zmin, zmax } = region;
+    const N = 48;
+    // side
+    for (let i = 0; i < N; i++) {
+      const t0 = (i/N)*2*Math.PI, t1 = ((i+1)/N)*2*Math.PI;
+      const pt0 = [a*Math.cos(t0), a*Math.sin(t0), zmin];
+      const pt1 = [a*Math.cos(t1), a*Math.sin(t1), zmin];
+      const pt2 = [a*Math.cos(t1), a*Math.sin(t1), zmax];
+      const pt3 = [a*Math.cos(t0), a*Math.sin(t0), zmax];
+      pushQuad(pt0, pt1, pt2, pt3);
+    }
+    // top/bottom disks
+    for (let i = 0; i < N; i++) {
+      const t0 = (i/N)*2*Math.PI, t1 = ((i+1)/N)*2*Math.PI;
+      // bottom
+      pushQuad([0,0,zmin],[a*Math.cos(t1),a*Math.sin(t1),zmin],[a*Math.cos(t0),a*Math.sin(t0),zmin],[0,0,zmin]);
+      // top
+      pushQuad([0,0,zmax],[a*Math.cos(t0),a*Math.sin(t0),zmax],[a*Math.cos(t1),a*Math.sin(t1),zmax],[0,0,zmax]);
+    }
+  }
+
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x7c5cff,
+    transparent: true,
+    opacity: 0.18,
+    side: THREE.DoubleSide,
+    wireframe: false,
+    flatShading: false
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+
+  // wireframe overlay
+  const wireGeom = new THREE.EdgesGeometry(geom, 15);
+  const wire = new THREE.LineSegments(
+    wireGeom,
+    new THREE.LineBasicMaterial({ color: 0x7c5cff, transparent: true, opacity: 0.4 })
+  );
+  const group = new THREE.Group();
+  group.add(mesh);
+  group.add(wire);
+  return group;
+}
+
+/* --- Interior divergence heatmap (point cloud) --- */
+function buildHeatmap(samples, vmax) {
+  const positions = [];
+  const colors = [];
+  const sizes = [];
+  for (const s of samples) {
+    positions.push(s.x, s.y, s.z);
+    const c = divColor(s.d, vmax);
+    colors.push(c.r, c.g, c.b);
+    const mag = Math.min(1, Math.abs(s.d) / (vmax || 1));
+    sizes.push(0.02 + 0.04 * mag);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  g.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.045,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.75,
+    sizeAttenuation: true
+  });
+  return new THREE.Points(g, mat);
+}
+
+/* --- Field arrows (sparse sampling inside region and on boundary) --- */
+function buildFieldArrows(F, region) {
+  const group = new THREE.Group();
+  const samples = [];
+  if (region.kind === "ball") {
+    const a = region.a;
+    const Nt = 12, Np = 6;
+    for (let i = 0; i < Nt; i++) {
+      for (let j = 1; j < Np; j++) {
+        const th = (i / Nt) * 2 * Math.PI;
+        const ph = (j / Np) * Math.PI;
+        samples.push([a * Math.sin(ph) * Math.cos(th), a * Math.sin(ph) * Math.sin(th), a * Math.cos(ph)]);
+      }
+    }
+  } else if (region.kind === "cube") {
+    const { xmin, xmax, ymin, ymax, zmin, zmax } = region;
+    const N = 4;
+    for (let i = 0; i <= N; i++) {
+      for (let j = 0; j <= N; j++) {
+        for (let k = 0; k <= N; k++) {
+          if (!(i === 0 || i === N || j === 0 || j === N || k === 0 || k === N)) continue;
+          samples.push([
+            xmin + (i / N) * (xmax - xmin),
+            ymin + (j / N) * (ymax - ymin),
+            zmin + (k / N) * (zmax - zmin)
+          ]);
+        }
+      }
+    }
+  } else if (region.kind === "cylinder") {
+    const { a, zmin, zmax } = region;
+    const Nt = 12, Nz = 4;
+    for (let i = 0; i < Nt; i++) {
+      for (let j = 0; j <= Nz; j++) {
+        const th = (i / Nt) * 2 * Math.PI;
+        const z = zmin + (j / Nz) * (zmax - zmin);
+        samples.push([a * Math.cos(th), a * Math.sin(th), z]);
+      }
+    }
+  }
+  for (const [x, y, z] of samples) {
+    const f = F(x, y, z);
+    const mag = Math.hypot(f.p, f.q, f.r);
+    if (mag < 1e-8) continue;
+    const len = Math.min(0.35, 0.1 + 0.15 * mag);
+    const dir = new THREE.Vector3(f.p, f.q, f.r).normalize();
+    const origin = new THREE.Vector3(x, y, z);
+    const arrow = new THREE.ArrowHelper(dir, origin, len, 0x22c55e, 0.08, 0.05);
+    group.add(arrow);
+  }
+  return group;
+}
+
+/* --- Outward normals on boundary --- */
+function buildNormals(region) {
+  const group = new THREE.Group();
+  const samples = [];
+  if (region.kind === "ball") {
+    const a = region.a;
+    const Nt = 12, Np = 6;
+    for (let i = 0; i < Nt; i++) {
+      for (let j = 1; j < Np; j++) {
+        const th = (i / Nt) * 2 * Math.PI;
+        const ph = (j / Np) * Math.PI;
+        const x = a * Math.sin(ph) * Math.cos(th);
+        const y = a * Math.sin(ph) * Math.sin(th);
+        const z = a * Math.cos(ph);
+        samples.push([x, y, z, x / a, y / a, z / a]);
+      }
+    }
+  } else if (region.kind === "cube") {
+    const { xmin, xmax, ymin, ymax, zmin, zmax } = region;
+    const N = 3;
+    const faces = [
+      { fixed: "x", val: xmin, n: [-1,0,0] }, { fixed: "x", val: xmax, n: [+1,0,0] },
+      { fixed: "y", val: ymin, n: [0,-1,0] }, { fixed: "y", val: ymax, n: [0,+1,0] },
+      { fixed: "z", val: zmin, n: [0,0,-1] }, { fixed: "z", val: zmax, n: [0,0,+1] }
+    ];
+    for (const f of faces) {
+      for (let i = 1; i <= N; i++) {
+        for (let j = 1; j <= N; j++) {
+          const u = i/(N+1), v = j/(N+1);
+          let x, y, z;
+          if (f.fixed === "x") { x = f.val; y = ymin + u*(ymax-ymin); z = zmin + v*(zmax-zmin); }
+          else if (f.fixed === "y") { x = xmin + u*(xmax-xmin); y = f.val; z = zmin + v*(zmax-zmin); }
+          else { x = xmin + u*(xmax-xmin); y = ymin + v*(ymax-ymin); z = f.val; }
+          samples.push([x, y, z, f.n[0], f.n[1], f.n[2]]);
+        }
+      }
+    }
+  } else if (region.kind === "cylinder") {
+    const { a, zmin, zmax } = region;
+    const Nt = 12, Nz = 3;
+    for (let i = 0; i < Nt; i++) {
+      for (let j = 1; j <= Nz; j++) {
+        const th = (i / Nt) * 2 * Math.PI;
+        const z = zmin + (j / (Nz + 1)) * (zmax - zmin);
+        samples.push([a * Math.cos(th), a * Math.sin(th), z, Math.cos(th), Math.sin(th), 0]);
+      }
+    }
+    // top/bottom
+    const Nr = 2;
+    for (let i = 0; i < Nt; i++) {
+      for (let j = 1; j <= Nr; j++) {
+        const th = (i / Nt) * 2 * Math.PI;
+        const r = (j / (Nr + 1)) * a;
+        samples.push([r * Math.cos(th), r * Math.sin(th), zmin, 0, 0, -1]);
+        samples.push([r * Math.cos(th), r * Math.sin(th), zmax, 0, 0, +1]);
+      }
+    }
+  }
+  for (const [x, y, z, nx, ny, nz] of samples) {
+    const dir = new THREE.Vector3(nx, ny, nz).normalize();
+    const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(x, y, z), 0.2, 0xf59e0b, 0.06, 0.04);
+    group.add(arrow);
+  }
+  return group;
+}
+
+/* --- Read region from UI --- */
+function readRegion() {
+  const kind = document.getElementById("region").value;
+  if (kind === "ball") {
+    return { kind: "ball", a: parseFloat(document.getElementById("radius").value) };
+  } else if (kind === "cube") {
+    return {
+      kind: "cube",
+      xmin: parseFloat(document.getElementById("xmin").value),
+      xmax: parseFloat(document.getElementById("xmax").value),
+      ymin: parseFloat(document.getElementById("ymin").value),
+      ymax: parseFloat(document.getElementById("ymax").value),
+      zmin: parseFloat(document.getElementById("zmin").value),
+      zmax: parseFloat(document.getElementById("zmax").value)
+    };
+  } else {
+    return {
+      kind: "cylinder",
+      a: parseFloat(document.getElementById("radius").value),
+      zmin: parseFloat(document.getElementById("zmin").value),
+      zmax: parseFloat(document.getElementById("zmax").value)
+    };
+  }
+}
+
+/* --- Main apply --- */
+function apply() {
+  const pE = document.getElementById("P").value;
+  const qE = document.getElementById("Q").value;
+  const rE = document.getElementById("R").value;
+  const region = readRegion();
+  const N = parseInt(document.getElementById("res").value);
+  document.getElementById("resLabel").textContent = N;
+
+  let F;
+  try { F = compileField(pE, qE, rE); }
+  catch (e) {
+    document.getElementById("fluxVal").textContent = "parse error";
+    document.getElementById("volVal").textContent = "parse error";
+    return;
+  }
+
+  // Clear old meshes
+  for (const obj of [boundaryMesh, heatmapPoints, fieldArrows, normalArrows]) {
+    if (obj) { scene.remove(obj); obj.traverse?.((c) => c.geometry?.dispose?.()); }
+  }
+
+  // Compute both sides
+  const vol = volumeIntegral(F, region, Math.min(N, 40));
+  const flux = fluxIntegral(F, region, N);
+
+  // Determine vmax for color scale
+  const vmax = Math.max(Math.abs(vol.minD), Math.abs(vol.maxD), 1e-6);
+
+  // Build visuals
+  if (document.getElementById("showBoundary").checked) {
+    boundaryMesh = buildBoundaryMesh(region);
+    scene.add(boundaryMesh);
+  } else boundaryMesh = null;
+
+  if (document.getElementById("showHeatmap").checked) {
+    heatmapPoints = buildHeatmap(vol.divSamples, vmax);
+    scene.add(heatmapPoints);
+  } else heatmapPoints = null;
+
+  if (document.getElementById("showField").checked) {
+    fieldArrows = buildFieldArrows(F, region);
+    scene.add(fieldArrows);
+  } else fieldArrows = null;
+
+  if (document.getElementById("showNormals").checked) {
+    normalArrows = buildNormals(region);
+    scene.add(normalArrows);
+  } else normalArrows = null;
+
+  // Update result display
+  document.getElementById("fluxVal").textContent = fmt(flux);
+  document.getElementById("volVal").textContent = fmt(vol.sum);
+  const diff = Math.abs(flux - vol.sum);
+  const rel = diff / (Math.max(Math.abs(flux), Math.abs(vol.sum), 1e-6));
+  const ag = document.getElementById("agreement");
+  if (rel < 0.02) {
+    ag.className = "agreement good";
+    ag.innerHTML = `<div>Divergence Theorem verified ✓</div><small>|LHS − RHS| = ${diff.toExponential(2)}  (rel ${(rel*100).toFixed(2)}%)</small>`;
+  } else if (rel < 0.08) {
+    ag.className = "agreement";
+    ag.innerHTML = `<div>Close — raise resolution</div><small>|LHS − RHS| = ${diff.toExponential(2)}  (rel ${(rel*100).toFixed(2)}%)</small>`;
+  } else {
+    ag.className = "agreement bad";
+    ag.innerHTML = `<div>Large discrepancy</div><small>|LHS − RHS| = ${diff.toExponential(2)}  (rel ${(rel*100).toFixed(2)}%)</small>`;
+  }
+  document.getElementById("divRange").textContent =
+    `range: div F ∈ [${vol.minD.toFixed(3)}, ${vol.maxD.toFixed(3)}]`;
+}
+
+/* --- Preset application --- */
+function setInputsFromPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  document.getElementById("region").value = p.region;
+  updateRegionUI();
+  if (p.region === "ball") {
+    document.getElementById("radius").value = p.a;
+  } else if (p.region === "cube") {
+    document.getElementById("xmin").value = p.xmin;
+    document.getElementById("xmax").value = p.xmax;
+    document.getElementById("ymin").value = p.ymin;
+    document.getElementById("ymax").value = p.ymax;
+    document.getElementById("zmin").value = p.zmin;
+    document.getElementById("zmax").value = p.zmax;
+  } else if (p.region === "cylinder") {
+    document.getElementById("radius").value = p.a;
+    document.getElementById("zmin").value = p.zmin;
+    document.getElementById("zmax").value = p.zmax;
+  }
+  document.getElementById("P").value = p.P;
+  document.getElementById("Q").value = p.Q;
+  document.getElementById("R").value = p.R;
+  document.getElementById("presetNote").textContent = p.note;
+  document.querySelectorAll("#presets button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.preset === name);
+  });
+}
+
+function updateRegionUI() {
+  const kind = document.getElementById("region").value;
+  const rInput = document.getElementById("radius").parentElement; // label+input wrapped? Actually just input
+  // Show radius for ball/cylinder, hide for cube
+  document.getElementById("radius").style.display = (kind === "cube") ? "none" : "";
+  // Show cube bounds only for cube; show zmin/zmax for cylinder
+  const showCube = (kind === "cube");
+  const showCyl  = (kind === "cylinder");
+  // For simplicity, leave all inputs visible but make ones not used irrelevant
+  // (users can see what's applied)
+}
+
+/* --- Wire up UI --- */
+window.addEventListener("DOMContentLoaded", () => {
+  init();
+  document.getElementById("update").addEventListener("click", apply);
+  document.getElementById("reset").addEventListener("click", () => {
+    THREE.Object3D.DEFAULT_UP = new THREE.Vector3(0, 0, 1);
+    camera.up.set(0, 0, 1);
+    camera.position.set(4.0, 4.0, 3.0);
+    controls.target.set(0, 0, 0);
+    camera.lookAt(0, 0, 0);
+  });
+  document.getElementById("region").addEventListener("change", updateRegionUI);
+  document.querySelectorAll("#presets button").forEach((b) => {
+    b.addEventListener("click", () => {
+      setInputsFromPreset(b.dataset.preset);
+      apply();
+    });
+  });
+  document.getElementById("res").addEventListener("input", (e) => {
+    document.getElementById("resLabel").textContent = e.target.value;
+  });
+  ["showBoundary","showHeatmap","showField","showNormals"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", apply);
+  });
+
+  setInputsFromPreset("hedgehog_ball");
+  apply();
+});
+</script>
+</body>
+</html>
+ For simplicity, leave all inputs visible but make ones not used irrelevant
+  // (users can see what's applied)
+}
+
+/* --- Wire up UI --- */
+window.addEventListener("DOMContentLoaded", () => {
+  init();
+  document.getElementById("update").addEventListener("click", apply);
+  document.getElementById("reset").addEventListener("click", () => {
+    THREE.Object3D.DEFAULT_UP = new THREE.Vector3(0, 0, 1);
+    camera.up.set(0, 0, 1);
+    camera.position.set(4.0, 4.0, 3.0);
+    controls.target.set(0, 0, 0);
+    camera.lookAt(0, 0, 0);
+  });
+  document.getElementById("region").addEventListener("change", updateRegionUI);
+  document.querySelectorAll("#presets button").forEach((b) => {
+    b.addEventListener("click", () => {
+      setInputsFromPreset(b.dataset.preset);
+      apply();
+    });
+  });
+  document.getElementById("res").addEventListener("input", (e) => {
+    document.getElementById("resLabel").textContent = e.target.value;
+  });
+  ["showBoundary","showHeatmap","showField","showNormals"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", apply);
+  });
+
+  setInputsFromPreset("hedgehog_ball");
+  apply();
+});
+</script>
+</body>
+</html>
+, 4.0, 3.0);
+    controls.target.set(0, 0, 0);
+    camera.lookAt(0, 0, 0);
+  });
+  document.getElementById("region").addEventListener("change", updateRegionUI);
+  document.querySelectorAll("#presets button").forEach((b) => {
+    b.addEventListener("click", () => {
+      setInputsFromPreset(b.dataset.preset);
+      apply();
+    });
+  });
+  document.getElementById("res").addEventListener("input", (e) => {
+    document.getElementById("resLabel").textContent = e.target.value;
+  });
+  ["showBoundary","showHeatmap","showField","showNormals"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", apply);
+  });
+
+  setInputsFromPreset("hedgehog_ball");
+  apply();
+});
+</script>
+</body>
+</html>

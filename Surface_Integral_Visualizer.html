@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lesson 56: Surface Integral Visualizer</title>
+<title>Lesson 59: Surface Integral Visualizer (Scalar &amp; Flux)</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; margin: 0; overflow: hidden; width: 100vw; height: 100vh; }
@@ -12,6 +12,7 @@
   #topBar .nav-links { font-size: 12px; }
   #topBar .nav-links a { color: #38bdf8; text-decoration: none; margin: 0 6px; }
   #topBar .nav-links a:hover { text-decoration: underline; }
+  #topBar .formula { color:#fbbf24; font-size:12px; font-style:italic; }
   #togglePanel { background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; white-space: nowrap; }
   #togglePanel:hover { background: rgba(251,191,36,0.3); }
   #canvasWrap { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; overflow: hidden; background: #0b1324; z-index: 0; }
@@ -19,7 +20,7 @@
   #overlay { position: fixed; top: 56px; left: 10px; font: 12px "Courier New", monospace; color: #e2e8f0; pointer-events: none; background: rgba(11,19,36,0.78); padding: 8px 12px; border-radius: 4px; max-width: 480px; z-index: 10; }
   #overlay .k { color: #fbbf24; }
   #hint { position: fixed; bottom: 10px; left: 10px; font-size: 11px; color: #64748b; pointer-events: none; background: rgba(11,19,36,0.6); padding: 3px 6px; border-radius: 3px; z-index: 10; }
-  .panel { position: fixed; top: 46px; right: 0; bottom: 0; background: rgba(30,41,59,0.94); backdrop-filter: blur(8px); border-left: 1px solid #334155; padding: 14px; width: 360px; overflow-y: auto; z-index: 20; transition: transform 0.3s ease; }
+  .panel { position: fixed; top: 46px; right: 0; bottom: 0; background: rgba(30,41,59,0.94); backdrop-filter: blur(8px); border-left: 1px solid #334155; padding: 14px; width: 380px; overflow-y: auto; z-index: 20; transition: transform 0.3s ease; }
   .panel.collapsed { transform: translateX(100%); }
   .label { color: #fbbf24; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
   .divider { border-top: 1px solid #334155; margin: 12px 0; padding-top: 12px; }
@@ -47,16 +48,22 @@
   .integral-value { font-size: 22px; font-weight: 700; color: #fbbf24; font-family: "Courier New", monospace; }
   .integral-note { font-size: 11px; color: #94a3b8; margin-top: 4px; min-height: 14px; }
   .stats-row { display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; margin-top: 6px; font-family: "Courier New", monospace; }
-  .colorbar { height: 10px; border-radius: 3px; margin-top: 4px;
-    background: linear-gradient(to right, #1e3a8a 0%, #3b82f6 25%, #67e8f9 50%, #fde68a 75%, #ef4444 100%); }
+  .colorbar { height: 10px; border-radius: 3px; margin-top: 4px; }
+  .colorbar.scalar { background: linear-gradient(to right, #1e3a8a 0%, #3b82f6 25%, #67e8f9 50%, #fde68a 75%, #ef4444 100%); }
+  .colorbar.flux { background: linear-gradient(to right, #1e3a8a 0%, #3b82f6 25%, #1e293b 50%, #f97316 75%, #dc2626 100%); }
   .colorbar-labels { display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; font-family: "Courier New", monospace; margin-top: 2px; }
+  .mode-toggle { display:flex; gap:4px; padding:3px; background:#0b1324; border:1px solid #334155; border-radius:6px; margin-bottom:10px; }
+  .mode-toggle button { flex:1; padding:6px 8px; background:transparent; border:none; color:#94a3b8; font-size:12px; font-weight:600; font-family:inherit; cursor:pointer; border-radius:4px; transition: all 0.15s; }
+  .mode-toggle button.active { background: rgba(251,191,36,0.2); color:#fbbf24; }
+  .mode-toggle button:hover:not(.active) { color:#e2e8f0; }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <div id="topBar">
   <div style="display:flex;align-items:center;gap:12px;">
     <h1>Surface Integral</h1>
-    <span style="color:#fbbf24;font-size:12px;font-style:italic;">∬<sub>S</sub> f dS = ∬<sub>D</sub> f(r(u,v)) |r<sub>u</sub>×r<sub>v</sub>| dA</span>
+    <span id="topFormula" class="formula">∬<sub>S</sub> f dS = ∬<sub>D</sub> f(r(u,v)) |r<sub>u</sub>×r<sub>v</sub>| dA</span>
   </div>
   <div class="nav-links">
     <a href="index.html">← Calculus Tools</a>
@@ -74,7 +81,7 @@
     <div id="ovField" style="color:#67e8f9; margin-top:2px;"></div>
     <div id="ovStats" style="margin-top:4px;"></div>
   </div>
-  <div id="hint">Drag to rotate · Scroll to zoom · Color shows f evaluated on the surface</div>
+  <div id="hint">Drag to rotate · Scroll to zoom · Color shows the integrand on the surface</div>
 </div>
 
 <div class="panel">
@@ -83,15 +90,32 @@
     <button class="secondary-btn" id="resetBtn">⟲ View</button>
   </div>
 
+  <div class="label">Mode</div>
+  <div class="mode-toggle">
+    <button id="modeScalar" class="active">Scalar  ∬ f dS</button>
+    <button id="modeFlux">Flux  ∬ F · dS</button>
+  </div>
+
   <div class="label">Scenario Preset</div>
   <select id="presetSelect">
-    <option value="hemisphere_z" selected>Hemisphere + f = z (expect π)</option>
-    <option value="sphere_one">Sphere + f = 1 (expect 4π = surface area)</option>
-    <option value="sphere_z2">Sphere + f = z² (expect 4π/3)</option>
-    <option value="paraboloid_z">Paraboloid z≤1 + f = z (expect π/240·(25√5 + 1))</option>
-    <option value="cylinder_z">Cylinder + f = z (expect 2π·h²/2)</option>
-    <option value="cone_height">Cone + f = z (linear density)</option>
-    <option value="custom">Custom (manual entry)</option>
+    <optgroup id="presetScalarGroup" label="Scalar surface integrals">
+      <option value="hemisphere_z" selected>Hemisphere + f = z (expect π)</option>
+      <option value="sphere_one">Sphere + f = 1 (expect 4π = surface area)</option>
+      <option value="sphere_z2">Sphere + f = z² (expect 4π/3)</option>
+      <option value="paraboloid_z">Paraboloid z≤1 + f = z (expect π/60·(25√5+1))</option>
+      <option value="cylinder_z">Cylinder + f = z (expect 4π)</option>
+      <option value="cone_height">Cone + f = z (linear density)</option>
+      <option value="custom">Custom (manual entry)</option>
+    </optgroup>
+    <optgroup id="presetFluxGroup" label="Vector flux integrals" disabled>
+      <option value="flux_hemi_radial">Hemisphere + F=⟨x,y,z⟩ (expect 2π)</option>
+      <option value="flux_sphere_radial">Sphere + F=⟨x,y,z⟩ (expect 4π)</option>
+      <option value="flux_cyl_side">Cylinder side + F=⟨x,y,0⟩ (expect 4π)</option>
+      <option value="flux_parab_zhat">Paraboloid + F=⟨0,0,1⟩ (expect π)</option>
+      <option value="flux_cone_zero">Cone + F=⟨x,y,z⟩ (expect 0)</option>
+      <option value="flux_disk_radial">Disk z=0 + F=⟨x,y,z⟩ (expect 0)</option>
+      <option value="flux_custom">Custom (manual entry)</option>
+    </optgroup>
   </select>
 
   <div class="divider">
@@ -123,13 +147,27 @@
   </div>
 
   <div class="divider">
-    <div class="label">Scalar Field f(x, y, z)</div>
-    <div class="input-row">
+    <div class="label" id="fieldLabel">Scalar Field f(x, y, z)</div>
+    <div id="scalarFieldRow" class="input-row">
       <span class="lbl">f =</span>
       <input type="text" id="fInput" value="z">
     </div>
+    <div id="vectorFieldRows" class="hidden">
+      <div class="input-row">
+        <span class="lbl">P(x,y,z) =</span>
+        <input type="text" id="pInput" value="x">
+      </div>
+      <div class="input-row">
+        <span class="lbl">Q(x,y,z) =</span>
+        <input type="text" id="qInput" value="y">
+      </div>
+      <div class="input-row">
+        <span class="lbl">R(x,y,z) =</span>
+        <input type="text" id="rInput" value="z">
+      </div>
+    </div>
     <div class="err-msg" id="errMsg"></div>
-    <div class="syntax-help">
+    <div class="syntax-help" id="syntaxHelp">
       Use x, y, z for surface points. Example densities: z, x²+y², exp(-z²), 1.
     </div>
   </div>
@@ -142,24 +180,24 @@
     </div>
     <input type="range" id="resSlider" min="4" max="150" value="40">
     <div class="integral-box">
-      <div style="font-size:12px;color:#94a3b8;">∬<sub>S</sub> f dS ≈</div>
+      <div id="integralLabel" style="font-size:12px;color:#94a3b8;">∬<sub>S</sub> f dS ≈</div>
       <div class="integral-value" id="intVal">—</div>
       <div class="integral-note" id="exactNote"></div>
     </div>
     <div class="stats-row">
       <span id="areaStat">A(S) = —</span>
-      <span id="avgStat">avg f = —</span>
+      <span id="avgStat">avg = —</span>
     </div>
   </div>
 
   <div class="divider">
-    <div class="label">f Colormap (on surface)</div>
-    <div class="colorbar"></div>
+    <div class="label" id="cmapLabel">f Colormap (on surface)</div>
+    <div class="colorbar scalar" id="colorbar"></div>
     <div class="colorbar-labels">
       <span id="cbMin">—</span>
       <span id="cbMax">—</span>
     </div>
-    <div style="font-size:11px;color:#94a3b8;margin-top:4px;line-height:1.4;">
+    <div id="cmapDesc" style="font-size:11px;color:#94a3b8;margin-top:4px;line-height:1.4;">
       Color shows f(x,y,z) evaluated on the surface. Physically: think surface density, temperature, or charge distribution. The integral accumulates this weighting over the entire surface.
     </div>
   </div>
@@ -168,6 +206,8 @@
     <div class="label">Display</div>
     <label><input type="checkbox" id="chkSurface" checked> Surface</label>
     <label><input type="checkbox" id="chkAxes" checked> Axes</label>
+    <label class="flux-only hidden"><input type="checkbox" id="chkField"> Field arrows F on S</label>
+    <label class="flux-only hidden"><input type="checkbox" id="chkNormals"> Outward normals n̂</label>
   </div>
 </div>
 
@@ -175,43 +215,128 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
+/* ───────── Smart number formatter: π-multiples > simple fractions > 4 decimals ───────── */
+function bestFraction(x, maxDen) {
+  if (!isFinite(x)) return null;
+  let bestP = 0, bestQ = 1, bestErr = Math.abs(x);
+  for (let q = 1; q <= maxDen; q++) {
+    const p = Math.round(x * q);
+    const err = Math.abs(x - p / q);
+    if (err < bestErr) { bestP = p; bestQ = q; bestErr = err; }
+  }
+  return { p: bestP, q: bestQ, err: bestErr };
+}
+function formatPiRational(p, q) {
+  if (p === 0) return "0";
+  const sign = p < 0 ? "-" : "";
+  const ap = Math.abs(p);
+  const num = ap === 1 ? "π" : ap + "π";
+  return q === 1 ? sign + num : sign + num + "/" + q;
+}
+function fmt(x) {
+  if (!isFinite(x)) return String(x);
+  if (Math.abs(x) < 5e-4) return "0";
+  const tol = Math.max(3e-3, 3e-3 * Math.abs(x));
+  const pi = bestFraction(x / Math.PI, 16);
+  if (pi && pi.err * Math.PI < tol && Math.abs(pi.p) <= 16 && pi.q <= 16 && !(pi.p === 0)) {
+    return formatPiRational(pi.p, pi.q);
+  }
+  const fr = bestFraction(x, 30);
+  if (fr && fr.err < tol) {
+    if (fr.q === 1) return String(fr.p);
+    return fr.p + "/" + fr.q;
+  }
+  return x.toFixed(4);
+}
+
 /* ───────── Scenario presets ───────── */
 const PRESETS = {
+  /* SCALAR */
   hemisphere_z: {
+    mode:"scalar",
     x:"sin(u)*cos(v)", y:"sin(u)*sin(v)", z:"cos(u)",
     umin:"0", umax:"pi/2", vmin:"0", vmax:"2*pi",
     f:"z",
     exact: Math.PI, exactTxt:"Exact: π ≈ 3.1416"
   },
   sphere_one: {
+    mode:"scalar",
     x:"sin(u)*cos(v)", y:"sin(u)*sin(v)", z:"cos(u)",
     umin:"0", umax:"pi", vmin:"0", vmax:"2*pi",
     f:"1",
-    exact: 4*Math.PI, exactTxt:"Exact: 4π ≈ 12.566 (=surface area)"
+    exact: 4*Math.PI, exactTxt:"Exact: 4π ≈ 12.566 (= surface area)"
   },
   sphere_z2: {
+    mode:"scalar",
     x:"sin(u)*cos(v)", y:"sin(u)*sin(v)", z:"cos(u)",
     umin:"0", umax:"pi", vmin:"0", vmax:"2*pi",
     f:"z^2",
     exact: 4*Math.PI/3, exactTxt:"Exact: 4π/3 ≈ 4.1888"
   },
   paraboloid_z: {
+    mode:"scalar",
     x:"u*cos(v)", y:"u*sin(v)", z:"u^2",
     umin:"0", umax:"1", vmin:"0", vmax:"2*pi",
     f:"z",
-    exact: Math.PI/60*(25*Math.sqrt(5)+1), exactTxt:"Exact (over disk x²+y²≤1): π/60·(25√5 + 1) ≈ 2.9791"
+    exact: Math.PI/60*(25*Math.sqrt(5)+1), exactTxt:"Exact: π/60·(25√5 + 1) ≈ 2.9791"
   },
   cylinder_z: {
+    mode:"scalar",
     x:"cos(u)", y:"sin(u)", z:"v",
     umin:"0", umax:"2*pi", vmin:"0", vmax:"2",
     f:"z",
-    exact: 4*Math.PI, exactTxt:"Exact: ∫₀²π ∫₀² z dz du = 2π·2 = 4π ≈ 12.566"
+    exact: 4*Math.PI, exactTxt:"Exact: 2π · 2 = 4π ≈ 12.566"
   },
   cone_height: {
+    mode:"scalar",
     x:"u*cos(v)", y:"u*sin(v)", z:"u",
     umin:"0", umax:"2", vmin:"0", vmax:"2*pi",
     f:"z",
     exact: 16*Math.PI*Math.SQRT2/3, exactTxt:"Exact: (16√2/3)π ≈ 23.695"
+  },
+
+  /* FLUX */
+  flux_hemi_radial: {
+    mode:"flux",
+    x:"sin(u)*cos(v)", y:"sin(u)*sin(v)", z:"cos(u)",
+    umin:"0", umax:"pi/2", vmin:"0", vmax:"2*pi",
+    p:"x", q:"y", r:"z",
+    exact: 2*Math.PI, exactTxt:"Exact: 2π ≈ 6.2832  (½ of full sphere flux)"
+  },
+  flux_sphere_radial: {
+    mode:"flux",
+    x:"sin(u)*cos(v)", y:"sin(u)*sin(v)", z:"cos(u)",
+    umin:"0", umax:"pi", vmin:"0", vmax:"2*pi",
+    p:"x", q:"y", r:"z",
+    exact: 4*Math.PI, exactTxt:"Exact: 4π ≈ 12.566  (matches Divergence Thm: ∭ 3 dV = 3·4π/3)"
+  },
+  flux_cyl_side: {
+    mode:"flux",
+    x:"cos(u)", y:"sin(u)", z:"v",
+    umin:"0", umax:"2*pi", vmin:"0", vmax:"2",
+    p:"x", q:"y", r:"0",
+    exact: 4*Math.PI, exactTxt:"Exact: 2π·height = 4π ≈ 12.566  (top/bottom not included)"
+  },
+  flux_parab_zhat: {
+    mode:"flux",
+    x:"u*cos(v)", y:"u*sin(v)", z:"1 - u^2",
+    umin:"0", umax:"1", vmin:"0", vmax:"2*pi",
+    p:"0", q:"0", r:"1",
+    exact: Math.PI, exactTxt:"Exact: π ≈ 3.1416  (= area of equator disk projection)"
+  },
+  flux_cone_zero: {
+    mode:"flux",
+    x:"u*cos(v)", y:"u*sin(v)", z:"u",
+    umin:"0", umax:"1", vmin:"0", vmax:"2*pi",
+    p:"x", q:"y", r:"z",
+    exact: 0, exactTxt:"Exact: 0  (F is tangent to the cone everywhere — flow grazes, never crosses)"
+  },
+  flux_disk_radial: {
+    mode:"flux",
+    x:"u*cos(v)", y:"u*sin(v)", z:"0",
+    umin:"0", umax:"1", vmin:"0", vmax:"2*pi",
+    p:"x", q:"y", r:"z",
+    exact: 0, exactTxt:"Exact: 0  (F·k̂ = z = 0 on the disk)"
   }
 };
 
@@ -219,10 +344,14 @@ const PRESETS = {
 let scene, camera, renderer, controls;
 let surfaceMesh = null;
 let axesHelper = null;
-let activeSurface = null, activeField = null;
+let fieldArrowsGroup = null;
+let normalArrowsGroup = null;
+let activeSurface = null, activeField = null, activeFieldVec = null;
+let mode = "scalar";   // "scalar" | "flux"
 let N = 40;
 let boundingR = 3;
 
+/* ───────── Compilation ───────── */
 function compileSurface(xE, yE, zE, uminE, umaxE, vminE, vmaxE) {
   const xC = math.compile(xE), yC = math.compile(yE), zC = math.compile(zE);
   const umin = math.evaluate(uminE), umax = math.evaluate(umaxE);
@@ -239,9 +368,20 @@ function compileField(fE) {
   fn(1,1,1);
   return { fn, label:`f(x,y,z) = ${fE}` };
 }
+function compileFieldVec(pE, qE, rE) {
+  const cp = math.compile(pE), cq = math.compile(qE), cr = math.compile(rE);
+  const fn = (x,y,z) => {
+    const s = {x,y,z};
+    const P = cp.evaluate(s), Q = cq.evaluate(s), R = cr.evaluate(s);
+    return [isFinite(P)?P:0, isFinite(Q)?Q:0, isFinite(R)?R:0];
+  };
+  fn(1,1,1);
+  return { fn, label:`F(x,y,z) = ⟨${pE}, ${qE}, ${rE}⟩` };
+}
 
-/* ───────── Colormap ───────── */
-function lerpColor(t) {
+/* ───────── Colormaps ───────── */
+function lerpScalar(t) {
+  // sequential blue→cyan→yellow→red for scalar f range [fMin, fMax]
   t = Math.max(0, Math.min(1, t));
   const stops = [
     [0.00, [30, 58, 138]],
@@ -259,25 +399,48 @@ function lerpColor(t) {
   }
   return [1,1,1];
 }
+function lerpDiverging(s) {
+  // diverging blue (negative) → dark (zero) → orange/red (positive) for flux F·n̂
+  // input s in [-1, 1]
+  s = Math.max(-1, Math.min(1, s));
+  if (s >= 0) {
+    // 0 → (30,41,59), 0.5 → (249,115,22), 1 → (220,38,38)
+    if (s < 0.5) {
+      const t = s/0.5;
+      return [(30+(249-30)*t)/255, (41+(115-41)*t)/255, (59+(22-59)*t)/255];
+    }
+    const t = (s-0.5)/0.5;
+    return [(249+(220-249)*t)/255, (115+(38-115)*t)/255, (22+(38-22)*t)/255];
+  }
+  const a = -s;
+  if (a < 0.5) {
+    const t = a/0.5;
+    return [(30+(59-30)*t)/255, (41+(130-41)*t)/255, (59+(246-59)*t)/255];
+  }
+  const t = (a-0.5)/0.5;
+  return [(59+(30-59)*t)/255, (130+(58-130)*t)/255, (246+(138-246)*t)/255];
+}
 
-/* ───────── Build ───────── */
+/* ───────── Build (Scalar OR Flux) ───────── */
 function buildSurface() {
   if (surfaceMesh) { scene.remove(surfaceMesh); surfaceMesh.geometry.dispose(); surfaceMesh.material.dispose(); surfaceMesh = null; }
-  if (!activeSurface || !activeField) return;
+  if (fieldArrowsGroup) { scene.remove(fieldArrowsGroup); disposeGroup(fieldArrowsGroup); fieldArrowsGroup = null; }
+  if (normalArrowsGroup) { scene.remove(normalArrowsGroup); disposeGroup(normalArrowsGroup); normalArrowsGroup = null; }
+
+  if (!activeSurface) return;
+  if (mode === "scalar" && !activeField) return;
+  if (mode === "flux" && !activeFieldVec) return;
 
   const { r, umin, umax, vmin, vmax } = activeSurface;
-  const { fn } = activeField;
   const nu = N, nv = N;
   const du = (umax-umin)/nu, dv = (vmax-vmin)/nv;
 
-  // Sample corners + compute per-cell f and |r_u x r_v|
-  // We use corner-based geometry (shared vertices) and color each vertex by f at that vertex.
   const positions = new Float32Array((nu+1)*(nv+1)*3);
   const colors = new Float32Array((nu+1)*(nv+1)*3);
-  const fVals = new Float32Array((nu+1)*(nv+1));
-  let fMin = Infinity, fMax = -Infinity;
-  let maxR = 0;
 
+  // Vertex pass — positions only first; integrand-color is scalar f or F·n̂_unit
+  const vtxPos = []; // flat [x,y,z, x,y,z, ...]
+  let maxR = 0;
   for (let i=0; i<=nu; i++) {
     const u = umin + (umax-umin)*i/nu;
     for (let j=0; j<=nv; j++) {
@@ -285,22 +448,69 @@ function buildSurface() {
       const p = r(u,v);
       const idx = i*(nv+1)+j;
       positions[3*idx]=p[0]; positions[3*idx+1]=p[1]; positions[3*idx+2]=p[2];
-      const f = fn(p[0],p[1],p[2]);
-      fVals[idx] = f;
-      if (f < fMin) fMin = f;
-      if (f > fMax) fMax = f;
       const rr = Math.hypot(p[0],p[1],p[2]);
       if (isFinite(rr) && rr > maxR) maxR = rr;
     }
   }
   boundingR = Math.max(2, Math.min(12, maxR*1.1));
 
-  // Map f to colors
-  const span = Math.max(1e-9, fMax - fMin);
-  for (let k=0; k<fVals.length; k++) {
-    const t = (fVals[k] - fMin) / span;
-    const col = lerpColor(t);
-    colors[3*k] = col[0]; colors[3*k+1] = col[1]; colors[3*k+2] = col[2];
+  // Compute integrand at each vertex AND track integral over cells (midpoint rule)
+  const vertexVals = new Float32Array((nu+1)*(nv+1));
+  let valMin = Infinity, valMax = -Infinity;
+
+  if (mode === "scalar") {
+    const { fn } = activeField;
+    for (let i=0; i<=nu; i++) {
+      for (let j=0; j<=nv; j++) {
+        const idx = i*(nv+1)+j;
+        const x = positions[3*idx], y = positions[3*idx+1], z = positions[3*idx+2];
+        const v = fn(x,y,z);
+        vertexVals[idx] = v;
+        if (v < valMin) valMin = v;
+        if (v > valMax) valMax = v;
+      }
+    }
+  } else {
+    // flux: vertex color = F · n̂_unit at each vertex
+    const { fn } = activeFieldVec;
+    for (let i=0; i<=nu; i++) {
+      const u = umin + (umax-umin)*i/nu;
+      for (let j=0; j<=nv; j++) {
+        const v = vmin + (vmax-vmin)*j/nv;
+        const idx = i*(nv+1)+j;
+        const p = r(u,v);
+        const hu = du*0.5, hv = dv*0.5;
+        const a = r(u+hu,v), b = r(u-hu,v);
+        const c = r(u,v+hv), d = r(u,v-hv);
+        const ru = [(a[0]-b[0])/(2*hu),(a[1]-b[1])/(2*hu),(a[2]-b[2])/(2*hu)];
+        const rv = [(c[0]-d[0])/(2*hv),(c[1]-d[1])/(2*hv),(c[2]-d[2])/(2*hv)];
+        let nx = ru[1]*rv[2]-ru[2]*rv[1], ny = ru[2]*rv[0]-ru[0]*rv[2], nz = ru[0]*rv[1]-ru[1]*rv[0];
+        const mag = Math.hypot(nx,ny,nz);
+        if (mag > 1e-12) { nx/=mag; ny/=mag; nz/=mag; }
+        const F = fn(p[0],p[1],p[2]);
+        const dot = F[0]*nx + F[1]*ny + F[2]*nz;
+        vertexVals[idx] = isFinite(dot) ? dot : 0;
+        if (vertexVals[idx] < valMin) valMin = vertexVals[idx];
+        if (vertexVals[idx] > valMax) valMax = vertexVals[idx];
+      }
+    }
+  }
+
+  // Apply colors
+  if (mode === "scalar") {
+    const span = Math.max(1e-9, valMax - valMin);
+    for (let k=0; k<vertexVals.length; k++) {
+      const t = (vertexVals[k] - valMin) / span;
+      const col = lerpScalar(t);
+      colors[3*k] = col[0]; colors[3*k+1] = col[1]; colors[3*k+2] = col[2];
+    }
+  } else {
+    const vmaxAbs = Math.max(Math.abs(valMin), Math.abs(valMax), 1e-9);
+    for (let k=0; k<vertexVals.length; k++) {
+      const t = vertexVals[k] / vmaxAbs;
+      const col = lerpDiverging(t);
+      colors[3*k] = col[0]; colors[3*k+1] = col[1]; colors[3*k+2] = col[2];
+    }
   }
 
   // Indices
@@ -324,7 +534,7 @@ function buildSurface() {
   surfaceMesh.visible = document.getElementById("chkSurface").checked;
   scene.add(surfaceMesh);
 
-  // Now compute integral: midpoint rule using r and f at cell centers + r_u, r_v via central difference
+  /* ─── integral pass: midpoint rule ─── */
   let intSum = 0, areaSum = 0;
   for (let i=0; i<nu; i++) {
     for (let j=0; j<nv; j++) {
@@ -338,34 +548,113 @@ function buildSurface() {
       const rv = [(c[0]-d[0])/(2*hv),(c[1]-d[1])/(2*hv),(c[2]-d[2])/(2*hv)];
       const cross = [ru[1]*rv[2]-ru[2]*rv[1], ru[2]*rv[0]-ru[0]*rv[2], ru[0]*rv[1]-ru[1]*rv[0]];
       const mag = Math.hypot(...cross);
-      const f = fn(p[0],p[1],p[2]);
-      if (isFinite(mag) && isFinite(f)) {
-        intSum += f * mag * du * dv;
-        areaSum += mag * du * dv;
+      areaSum += mag * du * dv;
+      if (mode === "scalar") {
+        const f = activeField.fn(p[0],p[1],p[2]);
+        if (isFinite(mag) && isFinite(f)) intSum += f * mag * du * dv;
+      } else {
+        const F = activeFieldVec.fn(p[0],p[1],p[2]);
+        const dot = F[0]*cross[0] + F[1]*cross[1] + F[2]*cross[2];
+        if (isFinite(dot)) intSum += dot * du * dv;   // F · (r_u × r_v) du dv
       }
     }
   }
 
-  document.getElementById("intVal").textContent = intSum.toFixed(4);
-  document.getElementById("areaStat").textContent = `A(S) ≈ ${areaSum.toFixed(4)}`;
-  document.getElementById("avgStat").textContent = `avg f ≈ ${(intSum/Math.max(1e-9,areaSum)).toFixed(4)}`;
-  document.getElementById("cbMin").textContent = fMin.toFixed(3);
-  document.getElementById("cbMax").textContent = fMax.toFixed(3);
+  /* ─── UI updates ─── */
+  document.getElementById("intVal").textContent = fmt(intSum);
+  document.getElementById("areaStat").textContent = `A(S) ≈ ${fmt(areaSum)}`;
+  const avgVal = intSum / Math.max(1e-9, areaSum);
+  if (mode === "scalar") {
+    document.getElementById("avgStat").textContent = `avg f ≈ ${fmt(avgVal)}`;
+  } else {
+    document.getElementById("avgStat").textContent = `avg F·n̂ ≈ ${fmt(avgVal)}`;
+  }
+  document.getElementById("cbMin").textContent = valMin.toFixed(3);
+  document.getElementById("cbMax").textContent = valMax.toFixed(3);
   document.getElementById("ovSurface").textContent = activeSurface.tex;
-  document.getElementById("ovField").textContent = activeField.label;
-  document.getElementById("ovStats").textContent = `N = ${N}×${N} | ∬_S f dS ≈ ${intSum.toFixed(4)} | A(S) ≈ ${areaSum.toFixed(4)}`;
+  document.getElementById("ovField").textContent = (mode==="scalar" ? activeField.label : activeFieldVec.label);
+  const intSym = mode === "scalar" ? "∬_S f dS" : "∬_S F · dS";
+  document.getElementById("ovStats").textContent = `N = ${N}×${N} | ${intSym} ≈ ${fmt(intSum)} | A(S) ≈ ${fmt(areaSum)}`;
 
   // Compare to expected (if preset)
   const key = document.getElementById("presetSelect").value;
   const preset = PRESETS[key];
   if (preset && isFinite(preset.exact)) {
-    const err = Math.abs(intSum - preset.exact) / Math.max(1e-9, Math.abs(preset.exact)) * 100;
-    document.getElementById("exactNote").textContent = `${preset.exactTxt}  |  Δ = ${err.toFixed(2)}%`;
+    const denom = Math.max(1e-9, Math.abs(preset.exact));
+    const err = Math.abs(intSum - preset.exact) / denom * 100;
+    document.getElementById("exactNote").textContent =
+      preset.exact === 0
+        ? `${preset.exactTxt}  |  |Δ| = ${Math.abs(intSum).toExponential(2)}`
+        : `${preset.exactTxt}  |  Δ = ${err.toFixed(2)}%`;
   } else {
     document.getElementById("exactNote").textContent = "";
   }
 
+  /* ─── Flux-only overlays: field arrows + normals ─── */
+  if (mode === "flux") {
+    if (document.getElementById("chkField").checked) {
+      fieldArrowsGroup = buildFieldArrows();
+      scene.add(fieldArrowsGroup);
+    }
+    if (document.getElementById("chkNormals").checked) {
+      normalArrowsGroup = buildNormalArrows();
+      scene.add(normalArrowsGroup);
+    }
+  }
+
   updateAxes();
+}
+
+function disposeGroup(g) {
+  g.traverse?.((c) => { c.geometry?.dispose?.(); c.material?.dispose?.(); });
+}
+
+function buildFieldArrows() {
+  const group = new THREE.Group();
+  const { r, umin, umax, vmin, vmax } = activeSurface;
+  const { fn } = activeFieldVec;
+  const Nu = 10, Nv = 14;
+  const du = (umax-umin)/Nu, dv = (vmax-vmin)/Nv;
+  for (let i=0; i<=Nu; i++) {
+    for (let j=0; j<Nv; j++) {
+      const u = umin + i*du, v = vmin + (j+0.5)*dv;
+      const p = r(u,v);
+      const F = fn(p[0],p[1],p[2]);
+      const m = Math.hypot(F[0],F[1],F[2]);
+      if (!isFinite(m) || m < 1e-8) continue;
+      const dir = new THREE.Vector3(F[0]/m, F[1]/m, F[2]/m);
+      const len = Math.min(0.4, 0.12 + 0.18 * m);
+      const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(p[0],p[1],p[2]), len, 0x22c55e, 0.08, 0.05);
+      group.add(arrow);
+    }
+  }
+  return group;
+}
+
+function buildNormalArrows() {
+  const group = new THREE.Group();
+  const { r, umin, umax, vmin, vmax } = activeSurface;
+  const Nu = 10, Nv = 14;
+  const du = (umax-umin)/Nu, dv = (vmax-vmin)/Nv;
+  for (let i=0; i<=Nu; i++) {
+    for (let j=0; j<Nv; j++) {
+      const u = umin + i*du, v = vmin + (j+0.5)*dv;
+      const p = r(u,v);
+      const hu = du*0.25, hv = dv*0.25;
+      const a = r(u+hu,v), b = r(u-hu,v);
+      const c = r(u,v+hv), d = r(u,v-hv);
+      const ru = [(a[0]-b[0])/(2*hu),(a[1]-b[1])/(2*hu),(a[2]-b[2])/(2*hu)];
+      const rv = [(c[0]-d[0])/(2*hv),(c[1]-d[1])/(2*hv),(c[2]-d[2])/(2*hv)];
+      let nx = ru[1]*rv[2]-ru[2]*rv[1], ny = ru[2]*rv[0]-ru[0]*rv[2], nz = ru[0]*rv[1]-ru[1]*rv[0];
+      const mag = Math.hypot(nx,ny,nz);
+      if (!isFinite(mag) || mag < 1e-12) continue;
+      nx /= mag; ny /= mag; nz /= mag;
+      const dir = new THREE.Vector3(nx, ny, nz);
+      const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(p[0],p[1],p[2]), 0.22, 0xf59e0b, 0.06, 0.04);
+      group.add(arrow);
+    }
+  }
+  return group;
 }
 
 function updateAxes() {
@@ -377,7 +666,6 @@ function updateAxes() {
 
 /* ───────── Scene setup ───────── */
 function init() {
-  // Math convention: z-axis is vertical (instead of Three.js default y-up)
   THREE.Object3D.DEFAULT_UP = new THREE.Vector3(0, 0, 1);
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b1324);
@@ -404,6 +692,47 @@ function onResize() {
 }
 function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
 
+/* ───────── Mode switching ───────── */
+function setMode(newMode) {
+  if (newMode === mode) return;
+  mode = newMode;
+  // Update toggle buttons
+  document.getElementById("modeScalar").classList.toggle("active", mode==="scalar");
+  document.getElementById("modeFlux").classList.toggle("active", mode==="flux");
+  // Field input visibility
+  document.getElementById("scalarFieldRow").classList.toggle("hidden", mode!=="scalar");
+  document.getElementById("vectorFieldRows").classList.toggle("hidden", mode!=="flux");
+  document.getElementById("fieldLabel").textContent = (mode==="scalar") ? "Scalar Field f(x, y, z)" : "Vector Field F = ⟨P, Q, R⟩";
+  // Flux-only display rows
+  document.querySelectorAll(".flux-only").forEach(el => el.classList.toggle("hidden", mode!=="flux"));
+  // Top-bar formula
+  document.getElementById("topFormula").innerHTML = (mode==="scalar")
+    ? "∬<sub>S</sub> f dS = ∬<sub>D</sub> f(r(u,v)) |r<sub>u</sub>×r<sub>v</sub>| dA"
+    : "∬<sub>S</sub> F · dS = ∬<sub>D</sub> F(r(u,v)) · (r<sub>u</sub>×r<sub>v</sub>) dA";
+  // Integral box label
+  document.getElementById("integralLabel").innerHTML = (mode==="scalar")
+    ? "∬<sub>S</sub> f dS ≈"
+    : "∬<sub>S</sub> F · dS ≈";
+  // Colorbar swap
+  document.getElementById("colorbar").classList.toggle("scalar", mode==="scalar");
+  document.getElementById("colorbar").classList.toggle("flux", mode==="flux");
+  document.getElementById("cmapLabel").textContent = (mode==="scalar") ? "f Colormap (on surface)" : "F · n̂ Colormap (signed flux density)";
+  document.getElementById("cmapDesc").innerHTML = (mode==="scalar")
+    ? "Color shows f(x,y,z) evaluated on the surface. Physically: think surface density, temperature, or charge distribution. The integral accumulates this weighting over the entire surface."
+    : "Color shows F · n̂ — the component of F crossing the surface outward. Red = outward flow, blue = inward, dark = parallel (no flux). The integral sums signed flux density over S.";
+  document.getElementById("syntaxHelp").innerHTML = (mode==="scalar")
+    ? "Use x, y, z for surface points. Example densities: z, x²+y², exp(-z²), 1."
+    : "Use x, y, z for the field components. Examples: ⟨x,y,z⟩ radial, ⟨-y,x,0⟩ rotational, ⟨0,0,1⟩ vertical.";
+  // Preset group enable/disable
+  document.getElementById("presetScalarGroup").disabled = (mode!=="scalar");
+  document.getElementById("presetFluxGroup").disabled = (mode!=="flux");
+  // Auto-pick a default preset for the new mode
+  const defaultKey = (mode==="scalar") ? "hemisphere_z" : "flux_hemi_radial";
+  document.getElementById("presetSelect").value = defaultKey;
+  setInputsFromPreset(defaultKey);
+  apply();
+}
+
 /* ───────── UI ───────── */
 function setInputsFromPreset(key) {
   const p = PRESETS[key]; if (!p) return;
@@ -414,9 +743,16 @@ function setInputsFromPreset(key) {
   document.getElementById("umaxInput").value = p.umax;
   document.getElementById("vminInput").value = p.vmin;
   document.getElementById("vmaxInput").value = p.vmax;
-  document.getElementById("fInput").value = p.f;
+  if (p.mode === "scalar") {
+    document.getElementById("fInput").value = p.f;
+  } else {
+    document.getElementById("pInput").value = p.p;
+    document.getElementById("qInput").value = p.q;
+    document.getElementById("rInput").value = p.r;
+  }
   document.getElementById("exactNote").textContent = p.exactTxt || "";
 }
+
 function apply() {
   document.getElementById("errMsg").textContent = "";
   try {
@@ -429,21 +765,39 @@ function apply() {
       document.getElementById("vminInput").value.trim(),
       document.getElementById("vmaxInput").value.trim()
     );
-    activeField = compileField(document.getElementById("fInput").value.trim());
+    if (mode === "scalar") {
+      activeField = compileField(document.getElementById("fInput").value.trim());
+    } else {
+      activeFieldVec = compileFieldVec(
+        document.getElementById("pInput").value.trim(),
+        document.getElementById("qInput").value.trim(),
+        document.getElementById("rInput").value.trim()
+      );
+    }
     buildSurface();
   } catch (err) {
     document.getElementById("errMsg").textContent = err.message;
   }
 }
+
 document.getElementById("applyBtn").addEventListener("click", apply);
 document.getElementById("resetBtn").addEventListener("click", () => { controls.reset(); camera.up.set(0,0,1); camera.position.set(4.0,4.0,3.0); controls.target.set(0,0,0); });
-document.getElementById("presetSelect").addEventListener("change", (e) => { if (e.target.value === "custom") return; setInputsFromPreset(e.target.value); apply(); });
+document.getElementById("presetSelect").addEventListener("change", (e) => {
+  const v = e.target.value;
+  if (v === "custom" || v === "flux_custom") return;
+  setInputsFromPreset(v);
+  apply();
+});
+document.getElementById("modeScalar").addEventListener("click", () => setMode("scalar"));
+document.getElementById("modeFlux").addEventListener("click", () => setMode("flux"));
 document.getElementById("togglePanel").addEventListener("click", () => { document.querySelector(".panel").classList.toggle("collapsed"); });
 document.getElementById("resSlider").addEventListener("input", (e) => { N = +e.target.value; document.getElementById("resNum").value = N; buildSurface(); });
 document.getElementById("resNum").addEventListener("change", (e) => { const v = Math.max(4, Math.min(200, +e.target.value || 40)); N = v; document.getElementById("resSlider").value = Math.min(150, N); buildSurface(); });
-["xInput","yInput","zInput","uminInput","umaxInput","vminInput","vmaxInput","fInput"].forEach(id => document.getElementById(id).addEventListener("keydown", (e) => { if (e.key === "Enter") apply(); }));
+["xInput","yInput","zInput","uminInput","umaxInput","vminInput","vmaxInput","fInput","pInput","qInput","rInput"].forEach(id => document.getElementById(id).addEventListener("keydown", (e) => { if (e.key === "Enter") apply(); }));
 document.getElementById("chkSurface").addEventListener("change", () => { if (surfaceMesh) surfaceMesh.visible = document.getElementById("chkSurface").checked; });
 document.getElementById("chkAxes").addEventListener("change", updateAxes);
+document.getElementById("chkField").addEventListener("change", buildSurface);
+document.getElementById("chkNormals").addEventListener("change", buildSurface);
 
 /* ───────── Boot ───────── */
 init();

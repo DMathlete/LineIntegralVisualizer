@@ -84,7 +84,7 @@
 </head>
 <body>
   <h1>MA204 — Vector Calculus Visualizers</h1>
-  <p class="subtitle">Interactive 3D tools for Block V: Vector Calculus — line integrals, surfaces, and surface integrals</p>
+  <p class="subtitle">Interactive 3D tools for Block V: Vector Calculus — line integrals, surfaces, Stokes &amp; Divergence</p>
 
   <div class="tools">
     <a class="tool-card" href="Line_Integral_Visualizer.html">
@@ -136,10 +136,26 @@
     </a>
 
     <a class="tool-card" href="Surface_Integral_Visualizer.html">
-      <div class="tool-title">Surface Integral</div>
-      <div class="tool-formula">$\displaystyle \iint_S f\, dS = \iint_D f(\mathbf{r}(u,v))\,|\mathbf{r}_u \times \mathbf{r}_v|\, dA$</div>
+      <div class="tool-title">Surface Integral &mdash; Scalar &amp; Flux</div>
+      <div class="tool-formula">$\displaystyle \iint_S f\, dS \quad\text{or}\quad \iint_S \mathbf{F}\cdot d\mathbf{S}$</div>
       <div class="tool-desc">
-        Pick any surface and any scalar field $f(x,y,z)$. The surface color-maps $f$ evaluated on $S$; the Riemann sum approximating $\iint_S f\, dS$ updates live as you refine the grid. Physical readings: mass of a thin shell, total charge, or average of $f$ over $S$.
+        One tool, two modes. <b>Scalar:</b> color-map any density $f(x,y,z)$ on $S$ &mdash; mass of a thin shell, total charge, average of $f$ over $S$. <b>Flux:</b> compute $\iint_S \mathbf{F}\cdot d\mathbf{S}$ with a signed $\mathbf{F}\cdot\hat{\mathbf{n}}$ heatmap, field arrows on $S$, and outward normals. Six flux presets including the parallel-flow cone (flux = 0) and the radial sphere (flux = $4\pi$, the punchline of the Divergence Theorem).
+      </div>
+    </a>
+
+    <a class="tool-card" href="Stokes_Theorem_Visualizer.html">
+      <div class="tool-title">Stokes' Theorem</div>
+      <div class="tool-formula">$\displaystyle \oint_{\partial S} \mathbf{F}\cdot d\mathbf{r} = \iint_S (\nabla \times \mathbf{F}) \cdot d\mathbf{S}$</div>
+      <div class="tool-desc">
+        Watch a boundary circulation and a surface flux of curl $\mathbf{F}$ agree numerically, side by side. Five presets (flat disk, tilted disk, paraboloid, hemisphere, reversed orientation) show how the equality survives every deformation of $S$ that keeps $\partial S$ fixed. Live curl $\cdot\, \hat{\mathbf{n}}$ color map plus oriented boundary arrows.
+      </div>
+    </a>
+
+    <a class="tool-card" href="Divergence_Theorem_Visualizer.html">
+      <div class="tool-title">Divergence Theorem</div>
+      <div class="tool-formula">$\displaystyle \iint_{\partial E} \mathbf{F}\cdot d\mathbf{S} = \iiint_E \nabla \cdot \mathbf{F}\, dV$</div>
+      <div class="tool-desc">
+        Volume sources vs. boundary flux — verified live for ball, cube, and cylinder regions. Interior divergence heatmap (red source, blue sink) plus outward-normal arrows on $\partial E$. Six presets from the pure hedgehog $\mathbf{F} = \langle x,y,z\rangle$ to a rotational field with zero divergence and an inverse-square variant.
       </div>
     </a>
   </div>
